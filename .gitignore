@@ -1,0 +1,20 @@
+# Local ROM and disk images.
+*.rom
+*.ROM
+*.dsk
+*.DSK
+
+# Emulator-generated artifacts.
+*.trace
+*.sav
+screenshots/
+captures/
+
+# Go build and test output.
+/cpcgo
+/bin/
+coverage.out
+*.test
+
+# Alternate git metadata used in this sandbox because .git is mounted read-only.
+/.gitdir/
