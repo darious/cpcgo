@@ -11,6 +11,7 @@ Stage 0 scaffold is in progress:
 - CLI flags for ROM, AMSDOS, disk image, model, and scale.
 - Z80 adapter using `github.com/user-none/go-chip-z80`.
 - CPC6128 memory/ROM bus foundation.
+- Initial Gate Array, CRTC, and PPI I/O skeleton.
 - Project specs in `spec.md` and staged plan in `plan.md`.
 
 ## ROMs

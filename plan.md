@@ -116,6 +116,8 @@ Exit criteria:
 
 Goal: run the CPC firmware far enough to exercise core hardware initialization without rendering a correct screen yet.
 
+Status: initial skeleton complete. Gate Array memory-control commands, upper ROM selection, CRTC register writes, and PPI register stubs are wired into the machine I/O bus. See `docs/stage3-firmware-skeleton.md`.
+
 Tasks:
 
 - Implement basic Gate Array command decoding:

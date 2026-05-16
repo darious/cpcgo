@@ -5,6 +5,9 @@ import (
 	"fmt"
 
 	"cpcgo/internal/bus"
+	"cpcgo/internal/crtc"
+	"cpcgo/internal/gatearray"
+	"cpcgo/internal/ppi"
 	"cpcgo/internal/rom"
 	"cpcgo/internal/z80"
 )
@@ -29,6 +32,11 @@ type Machine struct {
 	io     *bus.IO
 	bus    *bus.Bus
 	cpu    *z80.CPU
+
+	gateArray *gatearray.GateArray
+	romSelect *gatearray.ROMSelect
+	crtc      *crtc.CRTC
+	ppi       *ppi.PPI
 }
 
 // New constructs a machine from validated configuration.
@@ -45,14 +53,27 @@ func New(config Config) (*Machine, error) {
 		return nil, err
 	}
 	io := bus.NewIO()
+	gateArray := gatearray.New(memory)
+	romSelect := gatearray.NewROMSelect(memory)
+	crtcDevice := crtc.New()
+	ppiDevice := ppi.New()
+	io.Add(gateArray)
+	io.Add(romSelect)
+	io.Add(crtcDevice)
+	io.Add(ppiDevice)
+
 	cpcBus := bus.New(memory, io)
 
 	return &Machine{
-		config: config,
-		memory: memory,
-		io:     io,
-		bus:    cpcBus,
-		cpu:    z80.New(cpcBus),
+		config:    config,
+		memory:    memory,
+		io:        io,
+		bus:       cpcBus,
+		cpu:       z80.New(cpcBus),
+		gateArray: gateArray,
+		romSelect: romSelect,
+		crtc:      crtcDevice,
+		ppi:       ppiDevice,
 	}, nil
 }
 
@@ -79,6 +100,21 @@ func (m *Machine) Bus() *bus.Bus {
 // CPU returns the Z80 CPU adapter.
 func (m *Machine) CPU() *z80.CPU {
 	return m.cpu
+}
+
+// GateArray returns the machine Gate Array.
+func (m *Machine) GateArray() *gatearray.GateArray {
+	return m.gateArray
+}
+
+// CRTC returns the machine CRTC.
+func (m *Machine) CRTC() *crtc.CRTC {
+	return m.crtc
+}
+
+// PPI returns the machine PPI.
+func (m *Machine) PPI() *ppi.PPI {
+	return m.ppi
 }
 
 // Reset resets CPU state. Memory and devices keep their current state.

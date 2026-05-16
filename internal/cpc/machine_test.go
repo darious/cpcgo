@@ -29,6 +29,50 @@ func TestMachineFetchesFirstInstructionFromLowerROM(t *testing.T) {
 	}
 }
 
+func TestMachineHardwarePortWrites(t *testing.T) {
+	image := testROMImage()
+	program := []uint8{
+		0x01, 0x00, 0x7f, // LD BC,0x7f00
+		0x3e, 0x8e, // LD A,0x8e: mode 2, lower+upper ROM disabled
+		0xed, 0x79, // OUT (C),A
+		0x3e, 0xc1, // LD A,0xc1: RAM config 1
+		0xed, 0x79, // OUT (C),A
+		0x01, 0x00, 0xdf, // LD BC,0xdf00
+		0x3e, 0x07, // LD A,7: AMSDOS upper ROM bank
+		0xed, 0x79, // OUT (C),A
+		0x76, // HALT
+	}
+	copy(image.LowerOS, program)
+
+	machine, err := New(Config{Model: Model6128, ROMs: image, Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for offset, val := range program {
+		machine.Memory().RAMWrite(0, uint16(offset), val)
+	}
+	machine.RunInstructions(9)
+
+	if !machine.CPU().Halted() {
+		t.Fatal("CPU did not halt after hardware port program")
+	}
+	if got := machine.GateArray().Mode(); got != 2 {
+		t.Fatalf("mode = %d, want 2", got)
+	}
+	if machine.Memory().LowerROMEnabled() {
+		t.Fatal("lower ROM still enabled")
+	}
+	if machine.Memory().UpperROMEnabled() {
+		t.Fatal("upper ROM still enabled")
+	}
+	if got := machine.Memory().RAMConfig(); got != 1 {
+		t.Fatalf("RAM config = %d, want 1", got)
+	}
+	if got := machine.Memory().SelectedUpperROM(); got != 7 {
+		t.Fatalf("selected upper ROM = %d, want 7", got)
+	}
+}
+
 func TestMachineRejectsInvalidConfig(t *testing.T) {
 	_, err := New(Config{Model: "464", ROMs: testROMImage()})
 	if err == nil {
