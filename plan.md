@@ -56,6 +56,8 @@ Exit criteria:
 
 Goal: select a Z80 core that can boot firmware soon while leaving room for later timing accuracy.
 
+Status: complete. The selected core is `github.com/user-none/go-chip-z80` version `v0.0.0-20260315161243-6c949bf925bb`. See `docs/stage1-z80.md`.
+
 Candidates:
 
 - `github.com/user-none/go-chip-z80`

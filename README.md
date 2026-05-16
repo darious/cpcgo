@@ -9,6 +9,7 @@ Stage 0 scaffold is in progress:
 - Go module and package layout.
 - ROM loading and size validation.
 - CLI flags for ROM, AMSDOS, disk image, model, and scale.
+- Z80 adapter using `github.com/user-none/go-chip-z80`.
 - Project specs in `spec.md` and staged plan in `plan.md`.
 
 ## ROMs
