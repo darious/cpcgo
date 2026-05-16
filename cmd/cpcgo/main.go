@@ -44,12 +44,15 @@ func run() error {
 		}
 	}
 
-	machine := cpc.New(cpc.Config{
+	machine, err := cpc.New(cpc.Config{
 		Model: cpc.Model(*model),
 		ROMs:  image,
 		Disk:  *diskPath,
 		Scale: *scale,
 	})
+	if err != nil {
+		return err
+	}
 
 	config := machine.Config()
 	fmt.Printf("cpcgo model=%s scale=%d os=%d basic=%d amsdos=%d\n",

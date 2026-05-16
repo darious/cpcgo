@@ -86,6 +86,8 @@ Exit criteria:
 
 Goal: implement enough CPC6128 memory and port behavior for firmware reset code to run against believable hardware.
 
+Status: bus foundation complete. Memory banking, ROM overlays, upper ROM selection, I/O dispatch, and machine CPU wiring are implemented. Device-specific I/O decoding remains for later hardware stages. See `docs/stage2-bus.md`.
+
 Tasks:
 
 - Implement 128K RAM as eight 16K banks.
