@@ -2,6 +2,8 @@ package ppi
 
 import "testing"
 
+import "cpcgo/internal/psg"
+
 func TestPPIReadWritePorts(t *testing.T) {
 	p := New()
 
@@ -47,5 +49,36 @@ func TestPPIPortBDefault(t *testing.T) {
 	}
 	if got != 0xfe {
 		t.Fatalf("port B default = %#02x, want %#02x", got, 0xfe)
+	}
+}
+
+func TestPPIDrivesPSGThroughPortAAndC(t *testing.T) {
+	sound := psg.New()
+	p := New(sound)
+
+	p.WritePort(0xf400, 7)
+	p.WritePort(0xf600, 0xc0)
+	if got := sound.Selected(); got != 7 {
+		t.Fatalf("selected PSG register = %d, want 7", got)
+	}
+
+	p.WritePort(0xf400, 0x3f)
+	p.WritePort(0xf600, 0x80)
+	if got := sound.Register(7); got != 0x3f {
+		t.Fatalf("PSG register 7 = %#02x, want %#02x", got, 0x3f)
+	}
+
+	p.WritePort(0xf400, 0x00)
+	p.WritePort(0xf600, 0x40)
+	if got := p.PortA(); got != 0x3f {
+		t.Fatalf("PPI port A after PSG read = %#02x, want %#02x", got, 0x3f)
+	}
+}
+
+func TestPPIKeyboardLine(t *testing.T) {
+	p := New()
+	p.WritePort(0xf600, 0x0b)
+	if got := p.KeyboardLine(); got != 0x0b {
+		t.Fatalf("keyboard line = %d, want 11", got)
 	}
 }

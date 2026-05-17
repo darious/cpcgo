@@ -31,6 +31,12 @@ go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom
 
 At this stage the command validates inputs and prints startup configuration. It does not emulate hardware yet.
 
+Headless boot probe:
+
+```sh
+go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --probe-instructions 1000000
+```
+
 ## Test
 
 ```sh

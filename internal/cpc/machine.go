@@ -8,6 +8,7 @@ import (
 	"cpcgo/internal/crtc"
 	"cpcgo/internal/gatearray"
 	"cpcgo/internal/ppi"
+	"cpcgo/internal/psg"
 	"cpcgo/internal/rom"
 	"cpcgo/internal/z80"
 )
@@ -37,6 +38,7 @@ type Machine struct {
 	romSelect *gatearray.ROMSelect
 	crtc      *crtc.CRTC
 	ppi       *ppi.PPI
+	psg       *psg.PSG
 }
 
 // New constructs a machine from validated configuration.
@@ -56,7 +58,8 @@ func New(config Config) (*Machine, error) {
 	gateArray := gatearray.New(memory)
 	romSelect := gatearray.NewROMSelect(memory)
 	crtcDevice := crtc.New()
-	ppiDevice := ppi.New()
+	psgDevice := psg.New()
+	ppiDevice := ppi.New(psgDevice)
 	io.Add(gateArray)
 	io.Add(romSelect)
 	io.Add(crtcDevice)
@@ -74,6 +77,7 @@ func New(config Config) (*Machine, error) {
 		romSelect: romSelect,
 		crtc:      crtcDevice,
 		ppi:       ppiDevice,
+		psg:       psgDevice,
 	}, nil
 }
 
@@ -115,6 +119,11 @@ func (m *Machine) CRTC() *crtc.CRTC {
 // PPI returns the machine PPI.
 func (m *Machine) PPI() *ppi.PPI {
 	return m.ppi
+}
+
+// PSG returns the machine PSG.
+func (m *Machine) PSG() *psg.PSG {
+	return m.psg
 }
 
 // Reset resets CPU state. Memory and devices keep their current state.

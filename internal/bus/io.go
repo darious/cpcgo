@@ -10,7 +10,27 @@ type IODevice interface {
 type IO struct {
 	devices     []IODevice
 	defaultRead uint8
+	observer    IOObserver
 }
+
+// IOOperation identifies a port operation type.
+type IOOperation uint8
+
+const (
+	IORead IOOperation = iota
+	IOWrite
+)
+
+// IOEvent describes a completed I/O access.
+type IOEvent struct {
+	Operation IOOperation
+	Port      uint16
+	Value     uint8
+	Handled   bool
+}
+
+// IOObserver receives I/O events after dispatch.
+type IOObserver func(IOEvent)
 
 // NewIO creates an I/O dispatcher.
 func NewIO() *IO {
@@ -23,20 +43,39 @@ func (io *IO) Add(device IODevice) {
 	io.devices = append(io.devices, device)
 }
 
+// SetObserver installs an I/O observer and returns the previous observer.
+func (io *IO) SetObserver(observer IOObserver) IOObserver {
+	previous := io.observer
+	io.observer = observer
+	return previous
+}
+
 // In reads a byte from an I/O port.
 func (io *IO) In(port uint16) uint8 {
 	for _, device := range io.devices {
 		if val, ok := device.ReadPort(port); ok {
+			io.observe(IOEvent{Operation: IORead, Port: port, Value: val, Handled: true})
 			return val
 		}
 	}
+	io.observe(IOEvent{Operation: IORead, Port: port, Value: io.defaultRead, Handled: false})
 	return io.defaultRead
 }
 
 // Out writes a byte to an I/O port.
 func (io *IO) Out(port uint16, val uint8) {
+	handled := false
 	for _, device := range io.devices {
-		device.WritePort(port, val)
+		if device.WritePort(port, val) {
+			handled = true
+		}
+	}
+	io.observe(IOEvent{Operation: IOWrite, Port: port, Value: val, Handled: handled})
+}
+
+func (io *IO) observe(event IOEvent) {
+	if io.observer != nil {
+		io.observer(event)
 	}
 }
 

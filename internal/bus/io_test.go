@@ -49,3 +49,39 @@ func TestIOWriteBroadcastsToAllMatches(t *testing.T) {
 		t.Fatalf("second writes = %#v", second)
 	}
 }
+
+func TestIOObserverReportsHandledAndUnhandledAccesses(t *testing.T) {
+	io := NewIO()
+	var events []IOEvent
+	io.SetObserver(func(event IOEvent) {
+		events = append(events, event)
+	})
+	io.Add(Device{
+		Read: func(port uint16) (uint8, bool) {
+			return 0x77, port == 0x1000
+		},
+		Write: func(port uint16, val uint8) bool {
+			return port == 0x2000 && val == 0x88
+		},
+	})
+
+	_ = io.In(0x1000)
+	_ = io.In(0x1001)
+	io.Out(0x2000, 0x88)
+	io.Out(0x2001, 0x99)
+
+	want := []IOEvent{
+		{Operation: IORead, Port: 0x1000, Value: 0x77, Handled: true},
+		{Operation: IORead, Port: 0x1001, Value: 0xff, Handled: false},
+		{Operation: IOWrite, Port: 0x2000, Value: 0x88, Handled: true},
+		{Operation: IOWrite, Port: 0x2001, Value: 0x99, Handled: false},
+	}
+	if len(events) != len(want) {
+		t.Fatalf("event count = %d, want %d: %#v", len(events), len(want), events)
+	}
+	for i := range want {
+		if events[i] != want[i] {
+			t.Fatalf("event %d = %#v, want %#v", i, events[i], want[i])
+		}
+	}
+}

@@ -73,6 +73,22 @@ func TestMachineHardwarePortWrites(t *testing.T) {
 	}
 }
 
+func TestMachinePPIDrivesPSG(t *testing.T) {
+	machine, err := New(Config{Model: Model6128, ROMs: testROMImage(), Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	machine.IO().Out(0xf400, 7)
+	machine.IO().Out(0xf600, 0xc0)
+	machine.IO().Out(0xf400, 0x3f)
+	machine.IO().Out(0xf600, 0x80)
+
+	if got := machine.PSG().Register(7); got != 0x3f {
+		t.Fatalf("PSG register 7 = %#02x, want %#02x", got, 0x3f)
+	}
+}
+
 func TestMachineRejectsInvalidConfig(t *testing.T) {
 	_, err := New(Config{Model: "464", ROMs: testROMImage()})
 	if err == nil {
