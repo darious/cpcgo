@@ -27,6 +27,72 @@ func TestRenderMode1UsesRAMBehindROMOverlay(t *testing.T) {
 	}
 }
 
+func TestMode0Pens(t *testing.T) {
+	left, right := mode0Pens(0x36)
+	if left != 12 || right != 6 {
+		t.Fatalf("mode 0 pens = %d,%d, want 12,6", left, right)
+	}
+
+	left, right = mode0Pens(0xff)
+	if left != 15 || right != 15 {
+		t.Fatalf("mode 0 all bits = %d,%d, want 15,15", left, right)
+	}
+}
+
+func TestRenderMode0Pixels(t *testing.T) {
+	memory, ga, c := newRendererTestMachine(t)
+	ga.WritePort(0x7f00, 0x80) // mode 0
+	setInk(t, ga, 6, 18)
+	setInk(t, ga, 12, 21)
+	memory.Write(0xc000, 0x36)
+
+	img := Render(memory, c, ga)
+	if got := img.RGBAAt(0, 0); got != HardwareColor(21) {
+		t.Fatalf("left mode 0 pixel = %#v, want pen 12 colour", got)
+	}
+	if got := img.RGBAAt(3, 0); got != HardwareColor(21) {
+		t.Fatalf("left mode 0 run end = %#v, want pen 12 colour", got)
+	}
+	if got := img.RGBAAt(4, 0); got != HardwareColor(18) {
+		t.Fatalf("right mode 0 pixel = %#v, want pen 6 colour", got)
+	}
+}
+
+func TestMode1Pens(t *testing.T) {
+	pens := mode1Pens(0xac)
+	want := [4]uint8{3, 2, 1, 0}
+	if pens != want {
+		t.Fatalf("mode 1 pens = %v, want %v", pens, want)
+	}
+}
+
+func TestRenderMode1Pixels(t *testing.T) {
+	memory, ga, c := newRendererTestMachine(t)
+	ga.WritePort(0x7f00, 0x80|0x01) // mode 1
+	setInk(t, ga, 0, 20)
+	setInk(t, ga, 1, 11)
+	setInk(t, ga, 2, 4)
+	setInk(t, ga, 3, 18)
+	memory.Write(0xc000, 0xac)
+
+	img := Render(memory, c, ga)
+	tests := []struct {
+		x    int
+		ink  uint8
+		name string
+	}{
+		{x: 0, ink: 18, name: "pixel 0"},
+		{x: 2, ink: 4, name: "pixel 1"},
+		{x: 4, ink: 11, name: "pixel 2"},
+		{x: 6, ink: 20, name: "pixel 3"},
+	}
+	for _, test := range tests {
+		if got := img.RGBAAt(test.x, 0); got != HardwareColor(test.ink) {
+			t.Fatalf("%s = %#v, want hardware colour %d", test.name, got, test.ink)
+		}
+	}
+}
+
 func TestRenderMode2Pixels(t *testing.T) {
 	memory, ga, c := newRendererTestMachine(t)
 	ga.WritePort(0x7f00, 0x80|0x02) // mode 2
@@ -90,4 +156,10 @@ func newRendererTestMachine(t *testing.T) (*bus.Memory, *gatearray.GateArray, *c
 	c.WritePort(0xbd00, 0x30)
 	ga := gatearray.New(memory)
 	return memory, ga, c
+}
+
+func setInk(t *testing.T, ga *gatearray.GateArray, pen uint8, ink uint8) {
+	t.Helper()
+	ga.WritePort(0x7f00, pen)
+	ga.WritePort(0x7f00, 0x40|ink)
 }

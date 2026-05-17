@@ -48,27 +48,14 @@ func screenBase(c *crtc.CRTC) uint16 {
 }
 
 func plotMode0(img *image.RGBA, x int, y int, val uint8, g *gatearray.GateArray) {
-	left := ((val >> 7) & 0x01) << 3
-	left |= ((val >> 3) & 0x01) << 2
-	left |= ((val >> 5) & 0x01) << 1
-	left |= (val >> 1) & 0x01
-
-	right := ((val >> 6) & 0x01) << 3
-	right |= ((val >> 2) & 0x01) << 2
-	right |= ((val >> 4) & 0x01) << 1
-	right |= val & 0x01
+	left, right := mode0Pens(val)
 
 	fillRun(img, x, y, 4, inkColor(g, left))
 	fillRun(img, x+4, y, 4, inkColor(g, right))
 }
 
 func plotMode1(img *image.RGBA, x int, y int, val uint8, g *gatearray.GateArray) {
-	pixels := [4]uint8{
-		((val>>7)&0x01)<<1 | ((val >> 3) & 0x01),
-		((val>>6)&0x01)<<1 | ((val >> 2) & 0x01),
-		((val>>5)&0x01)<<1 | ((val >> 1) & 0x01),
-		((val>>4)&0x01)<<1 | (val & 0x01),
-	}
+	pixels := mode1Pens(val)
 	for i, pen := range pixels {
 		fillRun(img, x+i*2, y, 2, inkColor(g, pen))
 	}
@@ -78,6 +65,29 @@ func plotMode2(img *image.RGBA, x int, y int, val uint8, g *gatearray.GateArray)
 	for i := 0; i < 8; i++ {
 		pen := (val >> (7 - i)) & 0x01
 		img.SetRGBA(x+i, y, inkColor(g, pen))
+	}
+}
+
+func mode0Pens(val uint8) (uint8, uint8) {
+	left := ((val >> 1) & 0x01) << 3
+	left |= ((val >> 5) & 0x01) << 2
+	left |= ((val >> 3) & 0x01) << 1
+	left |= (val >> 7) & 0x01
+
+	right := (val & 0x01) << 3
+	right |= ((val >> 4) & 0x01) << 2
+	right |= ((val >> 2) & 0x01) << 1
+	right |= (val >> 6) & 0x01
+
+	return left, right
+}
+
+func mode1Pens(val uint8) [4]uint8 {
+	return [4]uint8{
+		((val>>3)&0x01)<<1 | ((val >> 7) & 0x01),
+		((val>>2)&0x01)<<1 | ((val >> 6) & 0x01),
+		((val>>1)&0x01)<<1 | ((val >> 5) & 0x01),
+		(val&0x01)<<1 | ((val >> 4) & 0x01),
 	}
 }
 
