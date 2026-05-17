@@ -35,6 +35,9 @@ func TestProbeCollectsCPUAndIOStats(t *testing.T) {
 	if result.Registers.PC == 0 {
 		t.Fatal("PC did not advance")
 	}
+	if result.Timing.Cycles == 0 {
+		t.Fatal("probe timing did not advance")
+	}
 	if result.IO.Writes != 1 {
 		t.Fatalf("writes = %d, want 1", result.IO.Writes)
 	}

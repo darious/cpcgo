@@ -18,3 +18,13 @@ func TestPSGSelectReadWrite(t *testing.T) {
 		t.Fatalf("register 1 = %#02x, want %#02x", got, 0x55)
 	}
 }
+
+func TestPSGIOPortsDefaultHigh(t *testing.T) {
+	p := New()
+	if got := p.Register(14); got != 0xff {
+		t.Fatalf("register 14 = %#02x, want %#02x", got, 0xff)
+	}
+	if got := p.Register(15); got != 0xff {
+		t.Fatalf("register 15 = %#02x, want %#02x", got, 0xff)
+	}
+}

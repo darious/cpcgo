@@ -89,6 +89,49 @@ func TestMachinePPIDrivesPSG(t *testing.T) {
 	}
 }
 
+func TestMachineTimingAdvancesAndUpdatesVSync(t *testing.T) {
+	image := testROMImage()
+	for i := range image.LowerOS {
+		image.LowerOS[i] = 0x00 // NOP
+	}
+	machine, err := New(Config{Model: Model6128, ROMs: image, Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	machine.RunInstructions(cyclesPerFrame / 4)
+
+	timing := machine.Timing()
+	if timing.Cycles == 0 {
+		t.Fatal("timing did not advance")
+	}
+	if timing.Frames == 0 {
+		t.Fatal("timing did not count a frame")
+	}
+	if timing.Interrupts == 0 {
+		t.Fatal("timing did not count interrupts")
+	}
+	if machine.PPI().PortB()&0x01 != 0 {
+		t.Fatal("VSync bit should be clear at start of next frame")
+	}
+}
+
+func TestMachineTimingCanSetVSync(t *testing.T) {
+	image := testROMImage()
+	for i := range image.LowerOS {
+		image.LowerOS[i] = 0x00 // NOP
+	}
+	machine, err := New(Config{Model: Model6128, ROMs: image, Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	machine.RunInstructions((cyclesPerFrame - vsyncCycles) / 4)
+	if machine.PPI().PortB()&0x01 == 0 {
+		t.Fatal("VSync bit should be set near end of frame")
+	}
+}
+
 func TestMachineRejectsInvalidConfig(t *testing.T) {
 	_, err := New(Config{Model: "464", ROMs: testROMImage()})
 	if err == nil {

@@ -11,7 +11,10 @@ type PSG struct {
 
 // New creates a PSG.
 func New() *PSG {
-	return &PSG{}
+	p := &PSG{}
+	p.registers[14] = 0xff
+	p.registers[15] = 0xff
+	return p
 }
 
 // Select selects an AY register.

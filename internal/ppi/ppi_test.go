@@ -52,6 +52,18 @@ func TestPPIPortBDefault(t *testing.T) {
 	}
 }
 
+func TestPPISetVSync(t *testing.T) {
+	p := New()
+	p.SetVSync(true)
+	if got := p.PortB() & 0x01; got != 1 {
+		t.Fatalf("VSync bit after set = %d, want 1", got)
+	}
+	p.SetVSync(false)
+	if got := p.PortB() & 0x01; got != 0 {
+		t.Fatalf("VSync bit after clear = %d, want 0", got)
+	}
+}
+
 func TestPPIDrivesPSGThroughPortAAndC(t *testing.T) {
 	sound := psg.New()
 	p := New(sound)

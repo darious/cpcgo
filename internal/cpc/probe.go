@@ -14,6 +14,7 @@ type ProbeResult struct {
 	Registers    ProbeRegisters
 	Halted       bool
 	IO           IOStats
+	Timing       TimingStats
 }
 
 // ProbeRegisters contains the CPU state most useful for early boot probing.
@@ -97,5 +98,6 @@ func (m *Machine) Probe(options ProbeOptions) ProbeResult {
 		},
 		Halted: m.cpu.Halted(),
 		IO:     stats,
+		Timing: m.Timing(),
 	}
 }

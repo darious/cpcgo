@@ -74,6 +74,15 @@ func (p *PPI) PortB() uint8 {
 	return p.portB
 }
 
+// SetVSync updates the VSync input bit exposed through port B bit 0.
+func (p *PPI) SetVSync(active bool) {
+	if active {
+		p.portB |= 0x01
+		return
+	}
+	p.portB &^= 0x01
+}
+
 // PortC returns the latched port C value.
 func (p *PPI) PortC() uint8 {
 	return p.portC

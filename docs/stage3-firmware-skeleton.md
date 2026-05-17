@@ -3,6 +3,7 @@
 Implemented pieces:
 
 - Headless boot probe with bounded instruction count, CPU register summary, and I/O statistics.
+- Approximate 4 MHz machine timing, 50 Hz frame counter, 300 Hz interrupt cadence, and PPI VSync bit.
 - Gate Array write decoding for `7Fxx`-style ports:
   - pen selection,
   - ink updates,
@@ -14,6 +15,7 @@ Implemented pieces:
 - CRTC register select/data write stubs.
 - PPI port A/B/C/control stubs.
 - AY-3-8912 PSG register latch/read/write path through PPI port A and port C BDIR/BC1 bits.
+- PSG I/O registers default high so the firmware initially sees no pressed keyboard bits.
 - PPI keyboard line latch from port C low nibble.
 - Machine wiring that registers Gate Array, ROM select, CRTC, and PPI devices on the I/O bus.
 - CPU-level test using real Z80 `OUT (C),A` instructions to drive memory controls through I/O.
@@ -38,9 +40,22 @@ Observed summary:
 - Most setup traffic is handled by Gate Array, PPI, CRTC, and ROM select.
 - Remaining unhandled setup ports seen so far: `fb7e`, `fa7e`, `ef7f`, `f8ff`.
 
-Likely next blocker:
+Later probe notes after approximate timing:
 
-- Gate Array/CRTC interrupt and frame timing. The firmware appears to progress through hardware setup and then wait in a timing-dependent loop.
+```text
+go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --probe-instructions 5000000
+```
+
+Observed summary after timing:
+
+- CPU reaches around `PC=1ea0`.
+- Timing advances through hundreds of frames and thousands of approximate interrupts.
+- Firmware repeatedly scans PPI/PSG ports, especially `f589` and `f44x`/`f64x` keyboard-related access patterns.
+
+Likely next blockers:
+
+- Real keyboard matrix readback through PSG register 14 and PPI keyboard-line selection.
+- More accurate CRTC/Gate Array VSync and interrupt timing.
 
 Verification:
 

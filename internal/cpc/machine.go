@@ -39,6 +39,9 @@ type Machine struct {
 	crtc      *crtc.CRTC
 	ppi       *ppi.PPI
 	psg       *psg.PSG
+
+	timing       timingState
+	interruptSet bool
 }
 
 // New constructs a machine from validated configuration.
@@ -126,14 +129,35 @@ func (m *Machine) PSG() *psg.PSG {
 	return m.psg
 }
 
+// Timing returns coarse machine timing counters.
+func (m *Machine) Timing() TimingStats {
+	return m.timing.stats()
+}
+
 // Reset resets CPU state. Memory and devices keep their current state.
 func (m *Machine) Reset() {
 	m.cpu.Reset()
+	m.cpu.INT(false, 0xff)
+	m.timing.reset()
+	m.interruptSet = false
+	m.ppi.SetVSync(false)
 }
 
 // Step executes one CPU instruction or interrupt service.
 func (m *Machine) Step() int {
-	return m.cpu.Step()
+	cycles := m.cpu.Step()
+	if m.interruptSet {
+		m.cpu.INT(false, 0xff)
+		m.interruptSet = false
+	}
+
+	if m.timing.advance(cycles) {
+		m.cpu.INT(true, 0xff)
+		m.interruptSet = true
+	}
+	m.ppi.SetVSync(m.timing.vsync)
+
+	return cycles
 }
 
 // RunInstructions executes count CPU steps and returns consumed T-states.

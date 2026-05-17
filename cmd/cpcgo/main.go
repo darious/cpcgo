@@ -97,6 +97,13 @@ func printProbe(result cpc.ProbeResult) {
 		result.IO.UnhandledReads,
 		result.IO.UnhandledWrites,
 	)
+	fmt.Printf("timing cycles=%d frames=%d interrupts=%d frame_cycle=%d vsync=%v\n",
+		result.Timing.Cycles,
+		result.Timing.Frames,
+		result.Timing.Interrupts,
+		result.Timing.FrameCycle,
+		result.Timing.VSync,
+	)
 	printTopPorts("top_read_ports", result.IO.ReadPorts)
 	printTopPorts("top_write_ports", result.IO.WritePorts)
 	printTopPorts("top_unhandled_ports", result.IO.UnhandledPorts)
