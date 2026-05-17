@@ -7,6 +7,7 @@ import (
 	"cpcgo/internal/bus"
 	"cpcgo/internal/crtc"
 	"cpcgo/internal/gatearray"
+	"cpcgo/internal/keyboard"
 	"cpcgo/internal/ppi"
 	"cpcgo/internal/psg"
 	"cpcgo/internal/rom"
@@ -39,6 +40,7 @@ type Machine struct {
 	crtc      *crtc.CRTC
 	ppi       *ppi.PPI
 	psg       *psg.PSG
+	keyboard  *keyboard.Matrix
 
 	timing       timingState
 	interruptSet bool
@@ -62,7 +64,8 @@ func New(config Config) (*Machine, error) {
 	romSelect := gatearray.NewROMSelect(memory)
 	crtcDevice := crtc.New()
 	psgDevice := psg.New()
-	ppiDevice := ppi.New(psgDevice)
+	keyboardMatrix := keyboard.New()
+	ppiDevice := ppi.New(psgDevice, keyboardMatrix)
 	io.Add(gateArray)
 	io.Add(romSelect)
 	io.Add(crtcDevice)
@@ -81,6 +84,7 @@ func New(config Config) (*Machine, error) {
 		crtc:      crtcDevice,
 		ppi:       ppiDevice,
 		psg:       psgDevice,
+		keyboard:  keyboardMatrix,
 	}, nil
 }
 
@@ -127,6 +131,11 @@ func (m *Machine) PPI() *ppi.PPI {
 // PSG returns the machine PSG.
 func (m *Machine) PSG() *psg.PSG {
 	return m.psg
+}
+
+// Keyboard returns the machine keyboard matrix.
+func (m *Machine) Keyboard() *keyboard.Matrix {
+	return m.keyboard
 }
 
 // Timing returns coarse machine timing counters.

@@ -29,7 +29,7 @@ func (p *PSG) Selected() uint8 {
 
 // Write writes to the selected AY register.
 func (p *PSG) Write(val uint8) {
-	p.registers[p.selected] = val
+	p.SetRegister(p.selected, val)
 }
 
 // Read reads from the selected AY register.
@@ -43,4 +43,12 @@ func (p *PSG) Register(register uint8) uint8 {
 		return 0
 	}
 	return p.registers[register]
+}
+
+// SetRegister sets an AY register value directly.
+func (p *PSG) SetRegister(register uint8, val uint8) {
+	if register >= RegisterCount {
+		return
+	}
+	p.registers[register] = val
 }

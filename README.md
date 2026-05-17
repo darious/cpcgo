@@ -12,6 +12,7 @@ Stage 0 scaffold is in progress:
 - Z80 adapter using `github.com/user-none/go-chip-z80`.
 - CPC6128 memory/ROM bus foundation.
 - Initial Gate Array, CRTC, and PPI I/O skeleton.
+- CPC keyboard matrix path through PSG/PPI.
 - Project specs in `spec.md` and staged plan in `plan.md`.
 
 ## ROMs

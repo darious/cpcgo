@@ -16,7 +16,8 @@ Implemented pieces:
 - PPI port A/B/C/control stubs.
 - AY-3-8912 PSG register latch/read/write path through PPI port A and port C BDIR/BC1 bits.
 - PSG I/O registers default high so the firmware initially sees no pressed keyboard bits.
-- PPI keyboard line latch from port C low nibble.
+- CPC active-low keyboard matrix.
+- PPI keyboard line latch from port C low nibble, feeding PSG register 14 reads.
 - Machine wiring that registers Gate Array, ROM select, CRTC, and PPI devices on the I/O bus.
 - CPU-level test using real Z80 `OUT (C),A` instructions to drive memory controls through I/O.
 
@@ -54,8 +55,8 @@ Observed summary after timing:
 
 Likely next blockers:
 
-- Real keyboard matrix readback through PSG register 14 and PPI keyboard-line selection.
 - More accurate CRTC/Gate Array VSync and interrupt timing.
+- First video framebuffer to verify visible boot progress.
 
 Verification:
 

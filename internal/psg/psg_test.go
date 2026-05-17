@@ -19,6 +19,14 @@ func TestPSGSelectReadWrite(t *testing.T) {
 	}
 }
 
+func TestPSGSetRegister(t *testing.T) {
+	p := New()
+	p.SetRegister(14, 0x7f)
+	if got := p.Register(14); got != 0x7f {
+		t.Fatalf("register 14 = %#02x, want %#02x", got, 0x7f)
+	}
+}
+
 func TestPSGIOPortsDefaultHigh(t *testing.T) {
 	p := New()
 	if got := p.Register(14); got != 0xff {

@@ -2,10 +2,13 @@ package ppi
 
 import "testing"
 
-import "cpcgo/internal/psg"
+import (
+	"cpcgo/internal/keyboard"
+	"cpcgo/internal/psg"
+)
 
 func TestPPIReadWritePorts(t *testing.T) {
-	p := New()
+	p := New(nil, nil)
 
 	if !p.WritePort(0xf400, 0x12) {
 		t.Fatal("PPI did not match port A")
@@ -21,7 +24,7 @@ func TestPPIReadWritePorts(t *testing.T) {
 }
 
 func TestPPIControlAndDecode(t *testing.T) {
-	p := New()
+	p := New(nil, nil)
 	if p.WritePort(0xff00, 0x00) {
 		t.Fatal("PPI matched port with bit 11 set")
 	}
@@ -42,7 +45,7 @@ func TestPPIControlAndDecode(t *testing.T) {
 }
 
 func TestPPIPortBDefault(t *testing.T) {
-	p := New()
+	p := New(nil, nil)
 	got, ok := p.ReadPort(0xf500)
 	if !ok {
 		t.Fatal("PPI did not match port B")
@@ -53,7 +56,7 @@ func TestPPIPortBDefault(t *testing.T) {
 }
 
 func TestPPISetVSync(t *testing.T) {
-	p := New()
+	p := New(nil, nil)
 	p.SetVSync(true)
 	if got := p.PortB() & 0x01; got != 1 {
 		t.Fatalf("VSync bit after set = %d, want 1", got)
@@ -66,7 +69,7 @@ func TestPPISetVSync(t *testing.T) {
 
 func TestPPIDrivesPSGThroughPortAAndC(t *testing.T) {
 	sound := psg.New()
-	p := New(sound)
+	p := New(sound, nil)
 
 	p.WritePort(0xf400, 7)
 	p.WritePort(0xf600, 0xc0)
@@ -88,9 +91,24 @@ func TestPPIDrivesPSGThroughPortAAndC(t *testing.T) {
 }
 
 func TestPPIKeyboardLine(t *testing.T) {
-	p := New()
+	p := New(nil, nil)
 	p.WritePort(0xf600, 0x0b)
 	if got := p.KeyboardLine(); got != 0x0b {
 		t.Fatalf("keyboard line = %d, want 11", got)
+	}
+}
+
+func TestPPIReadsSelectedKeyboardLineThroughPSGRegister14(t *testing.T) {
+	sound := psg.New()
+	keys := keyboard.New()
+	p := New(sound, keys)
+
+	keys.Press(keyboard.KeyEnter)
+	p.WritePort(0xf400, 14)
+	p.WritePort(0xf600, 0xc0) // Select PSG register 14.
+	p.WritePort(0xf600, 0x42) // Select keyboard line 2 and read PSG.
+
+	if got := p.PortA(); got != 0xfb {
+		t.Fatalf("port A keyboard row = %#02x, want %#02x", got, 0xfb)
 	}
 }

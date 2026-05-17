@@ -1,7 +1,10 @@
 // Package ppi emulates the Intel 8255 PPI.
 package ppi
 
-import "cpcgo/internal/psg"
+import (
+	"cpcgo/internal/keyboard"
+	"cpcgo/internal/psg"
+)
 
 // PPI stores the CPC-visible 8255 ports and control state.
 type PPI struct {
@@ -10,18 +13,16 @@ type PPI struct {
 	portC   uint8
 	control uint8
 	psg     *psg.PSG
+	keys    *keyboard.Matrix
 }
 
 // New creates a PPI with CPC-like reset inputs.
-func New(psgDevice ...*psg.PSG) *PPI {
-	var device *psg.PSG
-	if len(psgDevice) > 0 {
-		device = psgDevice[0]
-	}
+func New(psgDevice *psg.PSG, keys *keyboard.Matrix) *PPI {
 	return &PPI{
 		portB:   0xfe,
 		control: 0x9b,
-		psg:     device,
+		psg:     psgDevice,
+		keys:    keys,
 	}
 }
 
@@ -121,12 +122,20 @@ func (p *PPI) syncPSG() {
 
 	switch p.portC & 0xc0 {
 	case 0x40:
+		p.updateKeyboardRegister()
 		p.portA = p.psg.Read()
 	case 0x80:
 		p.psg.Write(p.portA)
 	case 0xc0:
 		p.psg.Select(p.portA)
 	}
+}
+
+func (p *PPI) updateKeyboardRegister() {
+	if p.keys == nil || p.psg.Selected() != 14 {
+		return
+	}
+	p.psg.SetRegister(14, p.keys.Row(p.KeyboardLine()))
 }
 
 func selectedByPort(port uint16) bool {

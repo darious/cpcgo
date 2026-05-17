@@ -3,6 +3,7 @@ package cpc
 import (
 	"testing"
 
+	"cpcgo/internal/keyboard"
 	"cpcgo/internal/rom"
 )
 
@@ -86,6 +87,22 @@ func TestMachinePPIDrivesPSG(t *testing.T) {
 
 	if got := machine.PSG().Register(7); got != 0x3f {
 		t.Fatalf("PSG register 7 = %#02x, want %#02x", got, 0x3f)
+	}
+}
+
+func TestMachineKeyboardMatrixFeedsPSGRegister14(t *testing.T) {
+	machine, err := New(Config{Model: Model6128, ROMs: testROMImage(), Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	machine.Keyboard().Press(keyboard.KeyEnter)
+	machine.IO().Out(0xf400, 14)
+	machine.IO().Out(0xf600, 0xc0)
+	machine.IO().Out(0xf600, 0x42)
+
+	if got := machine.PPI().PortA(); got != 0xfb {
+		t.Fatalf("keyboard row read = %#02x, want %#02x", got, 0xfb)
 	}
 }
 
