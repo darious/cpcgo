@@ -44,6 +44,12 @@ Crude framebuffer dump:
 go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 1000000 --dump-frame /tmp/cpcgo-frame.png
 ```
 
+Live Ebiten UI:
+
+```sh
+go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom --scale 3
+```
+
 ## Test
 
 ```sh

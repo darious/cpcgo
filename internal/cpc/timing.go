@@ -10,6 +10,9 @@ const (
 	vsyncCycles        = cyclesPerFrame / 40
 )
 
+// FramesPerSecond is the PAL CPC frame cadence used by the current scheduler.
+const FramesPerSecond = framesPerSecond
+
 // TimingStats reports coarse machine timing counters.
 type TimingStats struct {
 	Cycles     uint64

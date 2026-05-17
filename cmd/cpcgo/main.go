@@ -83,7 +83,6 @@ func run() error {
 		}
 		fmt.Printf("frame=%s\n", *dumpFrame)
 	}
-
 	return nil
 }
 

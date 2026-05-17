@@ -184,3 +184,13 @@ func (m *Machine) RunInstructions(count int) uint64 {
 	}
 	return cycles
 }
+
+// RunFrame executes CPU steps until the next emulated frame starts.
+func (m *Machine) RunFrame() uint64 {
+	startFrame := m.timing.frames
+	var cycles uint64
+	for m.timing.frames == startFrame {
+		cycles += uint64(m.Step())
+	}
+	return cycles
+}

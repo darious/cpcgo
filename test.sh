@@ -18,6 +18,9 @@ go test ./...
 echo "==> go vet"
 go vet ./...
 
+echo "==> live UI compile"
+go test -c -tags liveui -o /tmp/cpcgo-ui.test ./cmd/cpcgo-ui
+
 echo "==> CLI ROM smoke test"
 go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom >/dev/null
 

@@ -21,6 +21,7 @@ Implemented pieces:
 - Crude framebuffer renderer and PNG dump command.
 - Real ROM framebuffer probe reaches the CPC6128 BASIC banner and `Ready` prompt with:
   `go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 1000000 --dump-frame /tmp/cpcgo-frame.png`
+- Live Ebiten display path behind the `liveui` build tag.
 - Machine wiring that registers Gate Array, ROM select, CRTC, and PPI devices on the I/O bus.
 - CPU-level test using real Z80 `OUT (C),A` instructions to drive memory controls through I/O.
 
@@ -59,7 +60,7 @@ Observed summary after timing:
 Likely next blockers:
 
 - More accurate CRTC/Gate Array VSync and interrupt timing.
-- Ebiten window and live display once the framebuffer path is useful.
+- Broader host keyboard map and scripted input smoke tests.
 
 Verification:
 

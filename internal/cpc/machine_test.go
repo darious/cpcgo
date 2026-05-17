@@ -149,6 +149,25 @@ func TestMachineTimingCanSetVSync(t *testing.T) {
 	}
 }
 
+func TestMachineRunFrame(t *testing.T) {
+	image := testROMImage()
+	for i := range image.LowerOS {
+		image.LowerOS[i] = 0x00 // NOP
+	}
+	machine, err := New(Config{Model: Model6128, ROMs: image, Scale: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cycles := machine.RunFrame()
+	if cycles == 0 {
+		t.Fatal("RunFrame consumed no cycles")
+	}
+	if got := machine.Timing().Frames; got != 1 {
+		t.Fatalf("frames = %d, want 1", got)
+	}
+}
+
 func TestMachineRejectsInvalidConfig(t *testing.T) {
 	_, err := New(Config{Model: "464", ROMs: testROMImage()})
 	if err == nil {
