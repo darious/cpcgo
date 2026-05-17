@@ -140,6 +140,11 @@ func (m *Machine) Keyboard() *keyboard.Matrix {
 	return m.keyboard
 }
 
+// BorderInk returns the current Gate Array hardware colour for the border.
+func (m *Machine) BorderInk() uint8 {
+	return m.gateArray.Ink(gatearray.BorderPen)
+}
+
 // Timing returns coarse machine timing counters.
 func (m *Machine) Timing() TimingStats {
 	return m.timing.stats()

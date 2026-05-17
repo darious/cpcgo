@@ -88,10 +88,11 @@ func fillRun(img *image.RGBA, x int, y int, width int, c color.RGBA) {
 }
 
 func inkColor(g *gatearray.GateArray, pen uint8) color.RGBA {
-	return hardwareColor(g.Ink(pen))
+	return HardwareColor(g.Ink(pen))
 }
 
-func hardwareColor(ink uint8) color.RGBA {
+// HardwareColor converts a 5-bit CPC Gate Array hardware colour number to RGB.
+func HardwareColor(ink uint8) color.RGBA {
 	if int(ink) >= len(hardwarePalette) {
 		return hardwarePalette[0]
 	}
@@ -99,7 +100,7 @@ func hardwareColor(ink uint8) color.RGBA {
 }
 
 var hardwarePalette = [...]color.RGBA{
-	{R: 0x80, G: 0x80, B: 0x80, A: 0xff}, // 0 white, duplicated as grey-ish fallback.
+	{R: 0x80, G: 0x80, B: 0x80, A: 0xff}, // White, CPC 50% RGB.
 	{R: 0x80, G: 0x80, B: 0x80, A: 0xff},
 	{R: 0x00, G: 0xff, B: 0x80, A: 0xff},
 	{R: 0xff, G: 0xff, B: 0x80, A: 0xff},

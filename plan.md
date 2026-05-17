@@ -143,9 +143,14 @@ Exit criteria:
 
 Goal: display the CPC boot screen and BASIC prompt in an Ebiten window.
 
+Status: first live display complete. The Ebiten UI is build-tagged behind
+`liveui`, boots to the BASIC prompt, uses the CPC hardware colour table, fills
+the border from the Gate Array border pen, and presents a line-doubled display
+instead of raw 640x200 square pixels.
+
 Tasks:
 
-- Add Ebiten frontend in `cmd/cpcgo`.
+- Add Ebiten frontend in `cmd/cpcgo-ui`.
 - Keep emulator core independent from Ebiten imports.
 - Implement framebuffer generation for modes 0, 1, and 2.
 - Implement CPC palette mapping.
@@ -156,14 +161,19 @@ Tasks:
 
 Exit criteria:
 
-- Running `cpcgo --rom cpc6128.rom --amsdos amsdos.rom` opens a window.
+- Running `go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom` opens a window.
 - The emulator reaches a recognizable BASIC prompt.
 - Screen output is stable enough to read firmware text.
-- `go test ./...` passes.
+- `./test.sh` passes.
 
 ## Stage 5: Keyboard Input
 
 Goal: type into BASIC through the real CPC keyboard matrix path.
+
+Status: in progress. The CPC matrix coordinates now use the documented
+10-by-8 row/bit layout and the Ebiten frontend maps letters, digits, core
+punctuation, arrows, modifiers, return, delete, and function keys through that
+matrix.
 
 Tasks:
 

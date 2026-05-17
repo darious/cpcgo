@@ -103,7 +103,7 @@ func TestPPIReadsSelectedKeyboardLineThroughPSGRegister14(t *testing.T) {
 	keys := keyboard.New()
 	p := New(sound, keys)
 
-	keys.Press(keyboard.KeyEnter)
+	keys.Press(keyboard.KeyReturn)
 	p.WritePort(0xf400, 14)
 	p.WritePort(0xf600, 0xc0) // Select PSG register 14.
 	p.WritePort(0xf600, 0x42) // Select keyboard line 2 and read PSG.

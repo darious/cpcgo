@@ -1,6 +1,7 @@
 package video
 
 import (
+	"image/color"
 	"testing"
 
 	"cpcgo/internal/bus"
@@ -36,11 +37,28 @@ func TestRenderMode2Pixels(t *testing.T) {
 	memory.Write(0xc000, 0x80)
 
 	img := Render(memory, c, ga)
-	if got := img.RGBAAt(0, 0); got != hardwarePalette[11] {
+	if got := img.RGBAAt(0, 0); got != HardwareColor(11) {
 		t.Fatalf("pixel 0 = %#v, want white", got)
 	}
-	if got := img.RGBAAt(1, 0); got != hardwarePalette[20] {
+	if got := img.RGBAAt(1, 0); got != HardwareColor(20) {
 		t.Fatalf("pixel 1 = %#v, want black", got)
+	}
+}
+
+func TestHardwareColorPalette(t *testing.T) {
+	tests := map[uint8]color.RGBA{
+		0:  {R: 0x80, G: 0x80, B: 0x80, A: 0xff},
+		4:  {R: 0x00, G: 0x00, B: 0x80, A: 0xff},
+		10: {R: 0xff, G: 0xff, B: 0x00, A: 0xff},
+		11: {R: 0xff, G: 0xff, B: 0xff, A: 0xff},
+		20: {R: 0x00, G: 0x00, B: 0x00, A: 0xff},
+		28: {R: 0x80, G: 0x00, B: 0x00, A: 0xff},
+	}
+
+	for hw, want := range tests {
+		if got := HardwareColor(hw); got != want {
+			t.Fatalf("hardware colour %d = %#v, want %#v", hw, got, want)
+		}
 	}
 }
 

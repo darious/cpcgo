@@ -96,7 +96,7 @@ func TestMachineKeyboardMatrixFeedsPSGRegister14(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	machine.Keyboard().Press(keyboard.KeyEnter)
+	machine.Keyboard().Press(keyboard.KeyReturn)
 	machine.IO().Out(0xf400, 14)
 	machine.IO().Out(0xf600, 0xc0)
 	machine.IO().Out(0xf600, 0x42)

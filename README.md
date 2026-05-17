@@ -4,7 +4,7 @@
 
 ## Current Status
 
-Stage 0 scaffold is in progress:
+Current development focus:
 
 - Go module and package layout.
 - ROM loading and size validation.
@@ -12,7 +12,8 @@ Stage 0 scaffold is in progress:
 - Z80 adapter using `github.com/user-none/go-chip-z80`.
 - CPC6128 memory/ROM bus foundation.
 - Initial Gate Array, CRTC, and PPI I/O skeleton.
-- CPC keyboard matrix path through PSG/PPI.
+- CPC keyboard matrix path through PSG/PPI, with live Ebiten host-key mapping.
+- Live Ebiten display with CPC palette conversion, border fill, and line-doubled aspect.
 - Project specs in `spec.md` and staged plan in `plan.md`.
 
 ## ROMs
@@ -47,13 +48,15 @@ go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 10
 Live Ebiten UI:
 
 ```sh
-go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom --scale 3
+go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom
 ```
+
+To capture the aspect-correct live view, add `--screenshot /tmp/cpcgo-live.png` and press `F12`.
 
 ## Test
 
 ```sh
-go test ./...
+./test.sh
 ```
 
 ## License

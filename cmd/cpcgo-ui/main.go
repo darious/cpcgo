@@ -24,7 +24,8 @@ func run() error {
 		romPath    = flag.String("rom", "cpc6128.rom", "path to 32K CPC6128 OS+BASIC ROM")
 		amsdosPath = flag.String("amsdos", "", "path to optional 16K AMSDOS ROM")
 		model      = flag.String("model", string(cpc.Model6128), "CPC model to emulate")
-		scale      = flag.Int("scale", 2, "display scale factor")
+		scale      = flag.Int("scale", 1, "display scale factor")
+		screenshot = flag.String("screenshot", "", "optional PNG path written when F12 is pressed")
 	)
 	flag.Parse()
 
@@ -55,5 +56,5 @@ func run() error {
 		return err
 	}
 
-	return ebitenui.Run(machine, ebitenui.Config{Scale: *scale})
+	return ebitenui.Run(machine, ebitenui.Config{Scale: *scale, ScreenshotPath: *screenshot})
 }
