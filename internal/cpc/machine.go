@@ -3,6 +3,7 @@ package cpc
 
 import (
 	"fmt"
+	"image"
 
 	"cpcgo/internal/bus"
 	"cpcgo/internal/crtc"
@@ -11,6 +12,7 @@ import (
 	"cpcgo/internal/ppi"
 	"cpcgo/internal/psg"
 	"cpcgo/internal/rom"
+	"cpcgo/internal/video"
 	"cpcgo/internal/z80"
 )
 
@@ -141,6 +143,11 @@ func (m *Machine) Keyboard() *keyboard.Matrix {
 // Timing returns coarse machine timing counters.
 func (m *Machine) Timing() TimingStats {
 	return m.timing.stats()
+}
+
+// Framebuffer renders the current display memory.
+func (m *Machine) Framebuffer() image.Image {
+	return video.Render(m.memory, m.crtc, m.gateArray)
 }
 
 // Reset resets CPU state. Memory and devices keep their current state.

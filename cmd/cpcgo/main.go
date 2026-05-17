@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image/png"
 	"os"
 	"sort"
 
@@ -25,6 +26,8 @@ func run() error {
 		model      = flag.String("model", string(cpc.Model6128), "CPC model to emulate")
 		scale      = flag.Int("scale", 2, "display scale factor")
 		probe      = flag.Int("probe-instructions", 0, "run a bounded headless boot probe for N instructions")
+		dumpFrame  = flag.String("dump-frame", "", "write a crude framebuffer PNG to this path")
+		frameSteps = flag.Int("frame-instructions", 1_000_000, "instructions to run before --dump-frame")
 	)
 	flag.Parse()
 
@@ -71,7 +74,29 @@ func run() error {
 	if *probe > 0 {
 		printProbe(machine.Probe(cpc.ProbeOptions{Instructions: *probe}))
 	}
+	if *dumpFrame != "" {
+		if *frameSteps > 0 {
+			machine.RunInstructions(*frameSteps)
+		}
+		if err := writeFramePNG(*dumpFrame, machine); err != nil {
+			return err
+		}
+		fmt.Printf("frame=%s\n", *dumpFrame)
+	}
 
+	return nil
+}
+
+func writeFramePNG(path string, machine *cpc.Machine) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create frame PNG %s: %w", path, err)
+	}
+	defer file.Close()
+
+	if err := png.Encode(file, machine.Framebuffer()); err != nil {
+		return fmt.Errorf("encode frame PNG %s: %w", path, err)
+	}
 	return nil
 }
 

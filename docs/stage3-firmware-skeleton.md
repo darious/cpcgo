@@ -18,6 +18,9 @@ Implemented pieces:
 - PSG I/O registers default high so the firmware initially sees no pressed keyboard bits.
 - CPC active-low keyboard matrix.
 - PPI keyboard line latch from port C low nibble, feeding PSG register 14 reads.
+- Crude framebuffer renderer and PNG dump command.
+- Real ROM framebuffer probe reaches the CPC6128 BASIC banner and `Ready` prompt with:
+  `go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 1000000 --dump-frame /tmp/cpcgo-frame.png`
 - Machine wiring that registers Gate Array, ROM select, CRTC, and PPI devices on the I/O bus.
 - CPU-level test using real Z80 `OUT (C),A` instructions to drive memory controls through I/O.
 
@@ -56,7 +59,7 @@ Observed summary after timing:
 Likely next blockers:
 
 - More accurate CRTC/Gate Array VSync and interrupt timing.
-- First video framebuffer to verify visible boot progress.
+- Ebiten window and live display once the framebuffer path is useful.
 
 Verification:
 

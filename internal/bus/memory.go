@@ -87,6 +87,12 @@ func (m *Memory) Read(addr uint16) uint8 {
 	return m.ram[m.RAMBankForSlot(slot)][offset]
 }
 
+// ReadRAM reads the underlying CPU-visible RAM without ROM overlays.
+func (m *Memory) ReadRAM(addr uint16) uint8 {
+	slot, offset := slotAndOffset(addr)
+	return m.ram[m.RAMBankForSlot(slot)][offset]
+}
+
 // Write writes to underlying RAM. ROM overlays do not block writes.
 func (m *Memory) Write(addr uint16, val uint8) {
 	slot, offset := slotAndOffset(addr)

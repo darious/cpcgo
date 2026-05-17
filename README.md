@@ -30,12 +30,18 @@ Expected files while developing:
 go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom
 ```
 
-At this stage the command validates inputs and prints startup configuration. It does not emulate hardware yet.
+At this stage the command validates inputs, runs the emulated machine headlessly, and can dump a crude framebuffer that reaches the BASIC prompt.
 
 Headless boot probe:
 
 ```sh
 go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --probe-instructions 1000000
+```
+
+Crude framebuffer dump:
+
+```sh
+go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 1000000 --dump-frame /tmp/cpcgo-frame.png
 ```
 
 ## Test

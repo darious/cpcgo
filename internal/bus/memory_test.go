@@ -30,6 +30,19 @@ func TestMemoryROMOverlaysAndWriteThrough(t *testing.T) {
 	}
 }
 
+func TestMemoryReadRAMIgnoresROMOverlays(t *testing.T) {
+	m := newTestMemory(t)
+	m.Write(0x0000, 0x11)
+	m.Write(0xc000, 0x22)
+
+	if got := m.ReadRAM(0x0000); got != 0x11 {
+		t.Fatalf("ReadRAM lower = %#02x, want %#02x", got, 0x11)
+	}
+	if got := m.ReadRAM(0xc000); got != 0x22 {
+		t.Fatalf("ReadRAM upper = %#02x, want %#02x", got, 0x22)
+	}
+}
+
 func TestMemoryUpperROMSelection(t *testing.T) {
 	m := newTestMemory(t)
 

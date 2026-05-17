@@ -116,7 +116,7 @@ Exit criteria:
 
 Goal: run the CPC firmware far enough to exercise core hardware initialization without rendering a correct screen yet.
 
-Status: initial skeleton complete and boot probing started. Gate Array memory-control commands, upper ROM selection, CRTC register writes, PPI register stubs, PSG latch path, keyboard matrix, approximate timing/interrupts, VSync bit, and a headless probe are wired into the machine. See `docs/stage3-firmware-skeleton.md`.
+Status: initial skeleton complete and boot probing started. Gate Array memory-control commands, upper ROM selection, CRTC register writes, PPI register stubs, PSG latch path, keyboard matrix, approximate timing/interrupts, VSync bit, headless probe, and crude framebuffer PNG dump are wired into the machine. A real ROM PNG dump reaches the BASIC banner and `Ready` prompt. See `docs/stage3-firmware-skeleton.md`.
 
 Tasks:
 
