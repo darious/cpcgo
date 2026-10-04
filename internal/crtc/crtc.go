@@ -279,13 +279,17 @@ func (c *CRTC) endOfLine() {
 	}
 
 	if c.vlc == 0 && !c.inAdjust {
-		if c.vcc == c.registers[6] {
+		// Type 0 still displays the first scanline of a frame when R6=0.
+		if c.vcc == c.registers[6] && !(c.typ == 0 && c.vcc == 0) {
 			c.vdisp = false
 		}
 		if c.vcc == c.registers[7] && !c.vsync {
 			c.vsync = true
 			c.vsc = 0
 		}
+	}
+	if c.typ == 0 && c.registers[6] == 0 && (c.vcc != 0 || c.vlc != 0 || c.inAdjust) {
+		c.vdisp = false
 	}
 	c.ma = c.rowStart
 }
@@ -294,7 +298,7 @@ func (c *CRTC) newFrame() {
 	c.inAdjust = false
 	c.vcc = 0
 	c.vlc = 0
-	c.vdisp = c.registers[6] != 0
+	c.vdisp = c.registers[6] != 0 || c.typ == 0
 	c.rowStart = uint16(c.registers[12])<<8 | uint16(c.registers[13])
 	c.nextRowStart = c.rowStart
 }

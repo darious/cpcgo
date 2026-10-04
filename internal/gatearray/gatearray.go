@@ -66,6 +66,14 @@ type GateArray struct {
 	// output, followed by the codes produced this microsecond.
 	pipeline [pipelineDelay + PixelsPerTick]uint8
 	pixels   [PixelsPerTick]uint8
+
+	// InkDelay delays palette writes by this many microseconds. The
+	// pre-ASIC (CRTC type 4) machines apply them one microsecond later.
+	InkDelay     int
+	pendingInk   bool
+	pendingPen   uint8
+	pendingValue uint8
+	pendingTicks int
 }
 
 // New creates a Gate Array connected to the CPC memory map.
@@ -92,7 +100,13 @@ func (g *GateArray) WritePort(port uint16, val uint8) bool {
 			g.selectedPen = val & 0x0f
 		}
 	case 0x40:
-		g.inks[g.selectedPen] = val & 0x1f
+		if g.InkDelay > 0 {
+			g.pendingInk = true
+			g.pendingPen, g.pendingValue = g.selectedPen, val&0x1f
+			g.pendingTicks = g.InkDelay
+		} else {
+			g.inks[g.selectedPen] = val & 0x1f
+		}
 	case 0x80:
 		g.setMRER(val)
 	case 0xc0:
@@ -143,6 +157,14 @@ func (g *GateArray) Acknowledge() {
 // character, updates the interrupt logic on sync edges, and sends sixteen
 // pixels and any sync pulses to the display.
 func (g *GateArray) Clock(crtc VideoSource, display Display) {
+	if g.pendingInk {
+		if g.pendingTicks == 0 {
+			g.inks[g.pendingPen] = g.pendingValue
+			g.pendingInk = false
+		} else {
+			g.pendingTicks--
+		}
+	}
 	hsync, vsync := crtc.HSync(), crtc.VSync()
 
 	if vsync && !g.prevVSync {

@@ -111,6 +111,9 @@ func New(config Config) (*Machine, error) {
 		keyboard:  keyboard.New(),
 		monitor:   video.NewMonitor(),
 	}
+	if config.CRTCType >= 3 {
+		m.gateArray.InkDelay = 1
+	}
 	m.ppi = ppi.New(m.psg)
 	m.ppi.VSync = m.crtc.VSync
 	m.psg.PortA = func() uint8 { return m.keyboard.Row(m.ppi.KeyboardLine()) }
