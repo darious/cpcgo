@@ -62,7 +62,7 @@ func TestCPCMatrixCoordinates(t *testing.T) {
 }
 
 func TestSequenceForText(t *testing.T) {
-	sequence, err := SequenceForText("PRINT 1+1\n")
+	sequence, err := SequenceForText("print 1+1\nA")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +78,7 @@ func TestSequenceForText(t *testing.T) {
 		{KeyShift, KeySemicolon},
 		{Key1},
 		{KeyReturn},
+		{KeyShift, KeyA},
 	}
 	if len(sequence) != len(want) {
 		t.Fatalf("sequence length = %d, want %d", len(sequence), len(want))

@@ -7,7 +7,7 @@ import "fmt"
 type Chord []Key
 
 // SequenceForText converts a small BASIC-oriented text string to CPC key
-// chords. It is intended for smoke tests and later scripted input, not as a
+// chords. Capital letters are typed with Shift. It is intended for smoke tests and later scripted input, not as a
 // replacement for the live keyboard matrix.
 func SequenceForText(text string) ([]Chord, error) {
 	sequence := make([]Chord, 0, len(text))
@@ -22,6 +22,9 @@ func SequenceForText(text string) ([]Chord, error) {
 }
 
 func chordForRune(r rune) (Chord, bool) {
+	if r >= 'A' && r <= 'Z' {
+		return Chord{KeyShift, letterKeys[r]}, true
+	}
 	if key, ok := unshiftedRunes[r]; ok {
 		return Chord{key}, true
 	}
@@ -82,9 +85,6 @@ var shiftedRunes = map[rune]Key{
 }
 
 func init() {
-	for r := 'A'; r <= 'Z'; r++ {
-		unshiftedRunes[r] = letterKeys[r]
-	}
 	for r := 'a'; r <= 'z'; r++ {
 		unshiftedRunes[r] = letterKeys[r-'a'+'A']
 	}

@@ -273,7 +273,7 @@ func loadScript(path string) ([]op, error) {
 	return ops, scanner.Err()
 }
 
-// typeText holds each key for 2 frames and releases it for 1 frame. The
+// typeText holds each key for 2 frames and releases it for 2 frames. The
 // literal sequence \n also means Enter.
 func typeText(text string) []op {
 	text = strings.ReplaceAll(text, `\n`, "\n")
@@ -291,7 +291,7 @@ func typeText(text string) []op {
 		for i := len(chord) - 1; i >= 0; i-- {
 			ops = append(ops, op{kind: opRelease, key: chord[i]})
 		}
-		ops = append(ops, op{kind: opSleep, frames: 1})
+		ops = append(ops, op{kind: opSleep, frames: 2})
 	}
 	return ops
 }
@@ -348,6 +348,7 @@ func writeArtefacts(o options, machine *cpc.Machine, framesRun int) error {
 		"exit":        "frames_complete",
 		"ram_size":    len(ram),
 		"screen_mode": machine.GateArray().Mode(),
+		"screen_ma":   int(machine.CRTC().Register(12))<<8 | int(machine.CRTC().Register(13)),
 		"screen":      map[string]int{"width": img.Bounds().Dx(), "height": img.Bounds().Dy()},
 		"emulator":    "cpcgo",
 	}
