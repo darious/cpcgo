@@ -1,5 +1,14 @@
 # CPCGo Project Plan
 
+## Current State
+
+Stages 0-6 and most of stage 7 are implemented: own Z80 core with CPC bus
+timing, CRTC types 0/1/2/4, Gate Array with pixel pipeline and raster
+interrupts, monitor model, PPI/PSG with sound, uPD765 FDC with DSK/EDSK,
+464/664/6128 models, Ebiten UI with sound, and a cpc-validation runner.
+See `docs/validation.md` for the validation status. Still open: tape (CDT),
+snapshots (SNA), CPC Plus, interlace, and a debugger.
+
 ## Confirmed Direction
 
 - First target: boot a CPC6128 to the Locomotive BASIC prompt.
@@ -56,7 +65,7 @@ Exit criteria:
 
 Goal: select a Z80 core that can boot firmware soon while leaving room for later timing accuracy.
 
-Status: complete. The selected core is `github.com/user-none/go-chip-z80` version `v0.0.0-20260315161243-6c949bf925bb`. See `docs/stage1-z80.md`.
+Status: complete. cpcgo now uses its own Z80 core with CPC wait-state timing (it replaced the initial `github.com/user-none/go-chip-z80` adapter). See `docs/stage1-z80.md`.
 
 Candidates:
 

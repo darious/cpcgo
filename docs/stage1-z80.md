@@ -1,29 +1,34 @@
-# Stage 1 Z80 Core Decision
+# Stage 1 Z80 Core
 
-Selected core: `github.com/user-none/go-chip-z80`
+cpcgo uses its own Z80 core in `internal/z80`. It replaced the earlier
+`github.com/user-none/go-chip-z80` adapter, which counted T-states per
+instruction but could not model the CPC's bus timing or MEMPTR.
 
-Version:
+## Design
 
-```text
-v0.0.0-20260315161243-6c949bf925bb
-```
+- One instruction per `Step`, executed as the real sequence of machine
+  cycles: M1 opcode fetches (4 T), memory reads and writes (3 T), I/O cycles
+  (4 T) and internal delays.
+- `WaitStates` enables CPC timing. The Gate Array holds WAIT active on three
+  T-states out of four, so every cycle is delayed until the T-state at which
+  the Z80 samples WAIT is a free one (M1 and memory cycles sample in T2, I/O
+  cycles in the automatic wait state). This one rule reproduces the CPC's
+  documented "NOP" timings for every instruction and puts each I/O access at
+  the right point inside its instruction.
+- The bus callbacks run after the cycle counter includes the access, so the
+  machine can bring the video hardware up to the exact microsecond first.
+- Interrupt modes 0/1/2, NMI, HALT, the EI delay, and the interrupt
+  acknowledge cycle (with an optional `InterruptAcknowledger` for the data bus
+  value).
+- Undocumented behaviour: flags 3 and 5, MEMPTR (WZ) including its effect on
+  BIT n,(HL), the Q latch for SCF/CCF, SLL, IXH/IXL/IYH/IYL, DDCB result
+  copies, block I/O flags, ED aliases.
 
-## Why This Core
+## Verification
 
-- MIT licensed, which is compatible with the intended AGPL-3.0-or-later project license.
-- Provides a CPC-useful bus API:
-  - M1 opcode fetch via `Fetch`,
-  - memory read/write,
-  - full 16-bit I/O port read/write.
-- `Step` returns consumed T-states.
-- `StepCycles` supports cycle-budgeted execution without long-term drift.
-- Interrupt APIs cover maskable INT and NMI.
-- Exposes register snapshots, reset, halted state, cycle count, and serialization support.
-
-## Candidate Not Chosen
-
-`github.com/romychs/z80go` is BSD-3-Clause licensed and has strong stated CPU test coverage, including ZEXALL and Fuse tests. It was not selected for the initial adapter because its bus API does not expose a separate M1 fetch path, and the public execution interface is less directly aligned with the CPC timing model we want.
-
-## Integration Rule
-
-Only `internal/z80` should import the third-party CPU package. Other emulator packages should depend on the local adapter types so the CPU core can be replaced or forked later if timing or undocumented behavior becomes a blocker.
+- `CPCGO_ZEX=1 go test ./internal/z80` runs ZEXDOC and ZEXALL (all tests
+  pass).
+- Unit tests check standard T-states and CPC NOP timings per instruction.
+- The cpc-validation `instruction-timing` test measures 82 instruction
+  sequences against the raster on real firmware-free hardware set-up and
+  matches the reference emulator exactly on all CRTC types.
