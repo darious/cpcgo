@@ -48,17 +48,20 @@ func TestEnvelopePeriod(t *testing.T) {
 	p.SetRegister(11, 10)
 	p.SetRegister(12, 0)
 	p.SetRegister(13, 12) // repeating sawtooth up
-	start := p.envelopeLevel()
-	ticks := 0
-	for {
-		p.Tick()
-		ticks++
-		if p.envelopeLevel() < start && ticks > 1 {
-			break
+	// ticksToWrap runs until the ramp falls back from 15 to 0.
+	ticksToWrap := func() int {
+		prev := p.envelopeLevel()
+		for n := 1; n < 10000; n++ {
+			p.Tick()
+			if p.envelopeLevel() < prev {
+				return n
+			}
+			prev = p.envelopeLevel()
 		}
-		start = p.envelopeLevel()
+		return -1
 	}
-	if ticks != 320 {
-		t.Fatalf("envelope ramp took %d ticks, want 320", ticks)
+	ticksToWrap()
+	if got := ticksToWrap(); got != 320 {
+		t.Fatalf("envelope ramp took %d ticks, want 320", got)
 	}
 }
