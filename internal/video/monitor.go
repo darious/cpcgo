@@ -35,6 +35,10 @@ const (
 	// Free-running limits when sync pulses are missing.
 	maxLineMicros = 72
 	maxFieldLines = 340
+
+	// The vertical oscillator only accepts a VSYNC this late in a field;
+	// earlier pulses (mid-frame VSYNCs) do not cause a retrace.
+	minFieldLines = 260
 )
 
 // Monitor accumulates the Gate Array's output into frames.
@@ -82,12 +86,18 @@ func (m *Monitor) HSync() {
 	m.x = 0
 	m.y++
 	if m.y >= maxFieldLines {
-		m.VSync()
+		m.retrace()
 	}
 }
 
 // VSync implements gatearray.Display.
 func (m *Monitor) VSync() {
+	if m.y >= minFieldLines {
+		m.retrace()
+	}
+}
+
+func (m *Monitor) retrace() {
 	m.y = 0
 	m.complete = m.current
 	m.frames++

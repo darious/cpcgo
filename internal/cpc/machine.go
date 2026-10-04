@@ -150,7 +150,13 @@ func (b *cpuBus) In(port uint16) uint8 {
 }
 
 func (b *cpuBus) Out(port uint16, val uint8) {
-	b.m.sync()
+	if port&0x4000 == 0 && b.m.crtc.Type() < 3 {
+		// The discrete CRTCs (types 0-2) latch a write one microsecond
+		// earlier in the OUT cycle than the integrated type 3/4 parts.
+		b.m.syncTo(b.m.cpu.Cycles()/4 - 1)
+	} else {
+		b.m.sync()
+	}
 	b.m.io.Out(port, val)
 }
 
@@ -165,7 +171,11 @@ func (b *cpuBus) IntAck() uint8 {
 
 // sync advances the devices to the CPU's current time.
 func (m *Machine) sync() {
-	target := m.cpu.Cycles() / 4
+	m.syncTo(m.cpu.Cycles() / 4)
+}
+
+// syncTo advances the devices to the given microsecond.
+func (m *Machine) syncTo(target uint64) {
 	for m.micros < target {
 		m.tick()
 	}

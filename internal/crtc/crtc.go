@@ -106,6 +106,12 @@ func (c *CRTC) writeRegister(val uint8) {
 		return // R16/R17 are the read-only light pen registers
 	}
 	c.registers[c.selected] = val & registerMasks[c.selected]
+	// Writing R7 with the current row number starts VSYNC at once (except
+	// on the ASIC's type 3), rather than waiting for the next row.
+	if c.selected == 7 && c.typ != 3 && !c.vsync && c.registers[7] == c.vcc {
+		c.vsync = true
+		c.vsc = 0
+	}
 }
 
 // readRegister implements the type-dependent register read port (&BFxx).
