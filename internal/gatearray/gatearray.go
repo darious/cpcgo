@@ -12,6 +12,16 @@ const (
 
 	// PixelsPerTick is the number of mode 2 pixels produced per microsecond.
 	PixelsPerTick = 16
+
+	// pipelineDelay is how many pixels the fetched screen data (and the
+	// border/blanking decision) take to reach the colour output stage.
+	// Palette writes act on the output stage directly, so they take effect
+	// 1.5 microseconds ahead of the data being fetched at the same moment.
+	pipelineDelay = 24
+
+	// Pen codes in the pixel pipeline: 0-15 pens, then border and blank.
+	codeBorder = BorderPen
+	codeBlank  = 32
 )
 
 // VideoSource is the CRTC state the Gate Array samples every microsecond.
@@ -52,7 +62,10 @@ type GateArray struct {
 	hsyncTicks  int
 	vblankLines int
 
-	pixels [PixelsPerTick]uint8
+	// pipeline holds pen codes: the oldest pipelineDelay codes are pending
+	// output, followed by the codes produced this microsecond.
+	pipeline [pipelineDelay + PixelsPerTick]uint8
+	pixels   [PixelsPerTick]uint8
 }
 
 // New creates a Gate Array connected to the CPC memory map.
@@ -154,6 +167,15 @@ func (g *GateArray) Clock(crtc VideoSource, display Display) {
 	g.prevHSync, g.prevVSync = hsync, vsync
 
 	g.render(crtc, hsync)
+	for i := 0; i < PixelsPerTick; i++ {
+		code := g.pipeline[i]
+		if code == codeBlank {
+			g.pixels[i] = Black
+		} else {
+			g.pixels[i] = g.inks[code]
+		}
+	}
+	copy(g.pipeline[:pipelineDelay], g.pipeline[PixelsPerTick:])
 	display.Pixels(&g.pixels)
 }
 
@@ -177,20 +199,21 @@ func (g *GateArray) endOfHSync() {
 	}
 }
 
+// render puts the pen codes for the current character into the pipeline.
 func (g *GateArray) render(crtc VideoSource, hsync bool) {
-	px := &g.pixels
+	out := g.pipeline[pipelineDelay:]
 	if hsync || g.vblankLines > 0 {
-		fill(px, 0, PixelsPerTick, Black)
+		fill8(out, 0, PixelsPerTick, codeBlank)
 		return
 	}
 	if !crtc.DisplayEnabled() {
-		fill(px, 0, PixelsPerTick, g.inks[BorderPen])
+		fill8(out, 0, PixelsPerTick, codeBorder)
 		return
 	}
 	ma, ra := crtc.MA(), crtc.RA()
 	addr := (ma&0x3000)<<2 | uint16(ra&7)<<11 | (ma&0x03ff)<<1
 	for i := uint16(0); i < 2; i++ {
-		g.renderByte(px[i*8:i*8+8], g.memory.VideoRead(addr+i))
+		g.renderByte(out[i*8:i*8+8], g.memory.VideoRead(addr+i))
 	}
 }
 
@@ -198,23 +221,23 @@ func (g *GateArray) renderByte(out []uint8, b uint8) {
 	switch g.activeMode {
 	case 0:
 		left, right := Mode0Pens(b)
-		fill8(out, 0, 4, g.inks[left])
-		fill8(out, 4, 8, g.inks[right])
+		fill8(out, 0, 4, left)
+		fill8(out, 4, 8, right)
 	case 1:
 		pens := Mode1Pens(b)
 		for i, pen := range pens {
-			out[i*2] = g.inks[pen]
-			out[i*2+1] = g.inks[pen]
+			out[i*2] = pen
+			out[i*2+1] = pen
 		}
 	case 2:
 		for i := 0; i < 8; i++ {
-			out[i] = g.inks[(b>>(7-i))&1]
+			out[i] = (b >> (7 - i)) & 1
 		}
 	case 3:
 		left := (b>>7)&1 | (b>>2)&2
 		right := (b>>6)&1 | (b>>1)&2
-		fill8(out, 0, 4, g.inks[left])
-		fill8(out, 4, 8, g.inks[right])
+		fill8(out, 0, 4, left)
+		fill8(out, 4, 8, right)
 	}
 }
 
@@ -232,12 +255,6 @@ func Mode1Pens(b uint8) [4]uint8 {
 		(b>>6)&1 | (b>>1)&2,
 		(b>>5)&1 | b&2,
 		(b>>4)&1 | (b<<1)&2,
-	}
-}
-
-func fill(px *[PixelsPerTick]uint8, from, to int, c uint8) {
-	for i := from; i < to; i++ {
-		px[i] = c
 	}
 }
 

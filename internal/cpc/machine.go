@@ -120,6 +120,7 @@ func New(config Config) (*Machine, error) {
 	m.io.Add(m.crtc)
 	m.io.Add(m.ppi)
 	if config.DiskInterface {
+		m.ppi.Expansion = true
 		m.fdc = fdc.New()
 		m.io.Add(m.fdc)
 	}

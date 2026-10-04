@@ -9,9 +9,13 @@ package ppi
 
 import "cpcgo/internal/psg"
 
-// Port B inputs other than VSYNC: Amstrad distributor ID (7), 50 Hz, /EXP
-// high (no expansion), printer BUSY high (no printer), no cassette signal.
-const defaultPortB = 0x0e | 0x10 | 0x20 | 0x40
+// Port B inputs other than VSYNC and /EXP: Amstrad distributor ID (7),
+// 50 Hz, printer BUSY high (no printer), no cassette signal.
+const defaultPortB = 0x0e | 0x10 | 0x40
+
+// portBExp is the /EXP input: high unless an expansion pulls it low. The
+// 664/6128's built-in disk interface (and a DDI-1 on the 464) does.
+const portBExp = 0x20
 
 // PPI holds the 8255 port latches and control word.
 type PPI struct {
@@ -24,6 +28,8 @@ type PPI struct {
 	VSync func() bool
 	// PortBInputs overrides bits 1-7 of port B when non-zero.
 	PortBInputs uint8
+	// Expansion pulls /EXP (port B bit 5) low.
+	Expansion bool
 }
 
 // New creates a PPI connected to the PSG.
@@ -85,6 +91,9 @@ func (p *PPI) WritePort(port uint16, val uint8) bool {
 // PortB returns the port B input value.
 func (p *PPI) PortB() uint8 {
 	v := uint8(defaultPortB)
+	if !p.Expansion {
+		v |= portBExp
+	}
 	if p.PortBInputs != 0 {
 		v = p.PortBInputs &^ 1
 	}

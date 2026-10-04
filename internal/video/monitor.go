@@ -27,9 +27,9 @@ const (
 	Width  = WindowMicros * gatearray.PixelsPerTick
 	Height = WindowLines * 2
 
-	// The window starts this many microseconds after the monitor HSYNC and
-	// this many scanlines after the monitor VSYNC.
-	DefaultOffsetX = 12
+	// The window starts this many pixels after the monitor HSYNC and this
+	// many scanlines after the monitor VSYNC.
+	DefaultOffsetX = 12*gatearray.PixelsPerTick + 24
 	DefaultOffsetY = 34
 
 	// Free-running limits when sync pulses are missing.
@@ -62,10 +62,14 @@ func NewMonitor() *Monitor {
 
 // Pixels implements gatearray.Display.
 func (m *Monitor) Pixels(px *[gatearray.PixelsPerTick]uint8) {
-	col := m.x - m.OffsetX
 	line := m.y - m.OffsetY
-	if col >= 0 && col < WindowMicros && line >= 0 && line < WindowLines {
-		copy(m.current[line][col*gatearray.PixelsPerTick:], px[:])
+	if line >= 0 && line < WindowLines {
+		start := m.x*gatearray.PixelsPerTick - m.OffsetX
+		for i, c := range px {
+			if x := start + i; x >= 0 && x < Width {
+				m.current[line][x] = c
+			}
+		}
 	}
 	m.x++
 	if m.x >= maxLineMicros {
