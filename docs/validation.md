@@ -30,7 +30,7 @@ uv run cpc-validation run --runner ../cpcgo/cpc-runner-cpcgo --catalog catalog/
 
 ## Status
 
-76 tests pass. 24 newer probe tests fail (see below). Where documented
+87 of 111 tests pass; the 24 failures are newer CRTC probe tests (see below). Where documented
 hardware behaviour and the reference disagree, the case was left out of the
 tests rather than copied (for example the light pen registers R16/R17, R14/R15
 reads on types 1/2, and an early SENSE DRIVE STATUS reporting write protect).
