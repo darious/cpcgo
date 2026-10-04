@@ -1,62 +1,70 @@
 # cpcgo
 
-`cpcgo` is a Go Amstrad CPC6128 emulator project. The first target is a faithful boot to the Locomotive BASIC prompt, followed by keyboard input, timing accuracy, audio, and disk support.
+`cpcgo` is an Amstrad CPC emulator written in Go. It emulates the CPC 464,
+664 and 6128 at the hardware level: a Z80 with CPC bus timing, the 6845 CRTC,
+the Gate Array, the 8255 PPI, the AY-3-8912 PSG and the uPD765 floppy disk
+controller.
 
 ## Current Status
 
-Current development focus:
-
-- Go module and package layout.
-- ROM loading and size validation.
-- CLI flags for ROM, AMSDOS, disk image, model, and scale.
-- Z80 adapter using `github.com/user-none/go-chip-z80`.
-- CPC6128 memory/ROM bus foundation.
-- Initial Gate Array, CRTC, and PPI I/O skeleton.
-- CPC keyboard matrix path through PSG/PPI, with live Ebiten host-key mapping.
-- Live Ebiten display with CPC palette conversion, border fill, and line-doubled aspect.
-- Project specs in `spec.md` and staged plan in `plan.md`.
+- Z80 core written for cpcgo: all documented and undocumented instructions,
+  undocumented flags, MEMPTR, interrupt modes 0/1/2, and machine-cycle timing
+  with the Gate Array's WAIT stretching (instructions take whole
+  microseconds, I/O happens at the right point inside the instruction).
+  Passes ZEXDOC and ZEXALL.
+- CRTC types 0, 1, 2 and 4 (character-clocked counters, HSYNC/VSYNC, type
+  specific register reads and sync widths).
+- Gate Array: palette, modes 0-3 (mode changes take effect at HSYNC), ROM and
+  RAM mapping, raster interrupt counter with the VSYNC resynchronisation.
+- Monitor model producing 768x536 frames (48 µs x 268 scanlines, doubled).
+- PPI and PSG including keyboard scanning and sound generation.
+- uPD765 FDC with standard and extended DSK images.
+- Headless CLI, Ebiten live UI with sound, and a
+  [cpc-validation](https://github.com/darious/cpc-validation) runner.
 
 ## ROMs
 
-ROM files are local runtime inputs and should not be committed.
+ROM files are local runtime inputs and are not committed. Place them in the
+repository root (or pass paths):
 
-Expected files while developing:
-
-- `cpc6128.rom`: 32K OS+BASIC image.
-- `amsdos.rom`: optional 16K AMSDOS image for later disk support.
+- `cpc464.rom`, `cpc664.rom`, `cpc6128.rom`: 32K OS+BASIC images.
+- `amsdos.rom`: 16K AMSDOS image (664/6128 disk support).
 
 ## Run
 
-```sh
-go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom
-```
-
-At this stage the command validates inputs, runs the emulated machine headlessly, and can dump a crude framebuffer that reaches the BASIC prompt.
-
-Headless boot probe:
+Headless, saving the final frame:
 
 ```sh
-go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --probe-instructions 1000000
+go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frames 200 --dump-frame /tmp/cpcgo.png
 ```
 
-Crude framebuffer dump:
-
-```sh
-go run ./cmd/cpcgo --rom cpc6128.rom --amsdos amsdos.rom --frame-instructions 1000000 --dump-frame /tmp/cpcgo-frame.png
-```
+Other models: `--model 464 --rom cpc464.rom`, `--model 664 --rom cpc664.rom`.
+Insert a disk with `--disk game.dsk`.
 
 Live Ebiten UI:
 
 ```sh
-go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom
+go run -tags liveui ./cmd/cpcgo-ui --rom cpc6128.rom --amsdos amsdos.rom [--disk game.dsk]
 ```
 
-To capture the aspect-correct live view, add `--screenshot /tmp/cpcgo-live.png` and press `F12`.
+Add `--screenshot /tmp/cpcgo-live.png` and press `F12` to capture the screen.
+
+## Validation
+
+`cmd/cpc-runner-cpcgo` implements the cpc-validation runner protocol. With
+cpc-validation checked out next to cpcgo:
+
+```sh
+go build -o cpc-runner-cpcgo ./cmd/cpc-runner-cpcgo   # finds ROMs next to itself or in $CPCGO_ROM_DIR
+cd ../cpc-validation
+uv run cpc-validation run --runner ../cpcgo/cpc-runner-cpcgo --catalog catalog/
+```
 
 ## Test
 
 ```sh
-./test.sh
+./test.sh                          # format, vet, unit tests, UI compile, smoke test
+CPCGO_ZEX=1 go test ./internal/z80 # ZEXDOC/ZEXALL instruction exercisers (several minutes)
 ```
 
 ## License

@@ -1,129 +1,122 @@
-// Package ppi emulates the Intel 8255 PPI.
+// Package ppi emulates the Intel 8255 PPI as wired in the CPC.
+//
+// Port A: PSG data bus (input or output). Port B (input): bit 0 VSYNC,
+// bits 1-3 distributor ID, bit 4 screen refresh (1 = 50 Hz), bit 5 /EXP,
+// bit 6 printer BUSY, bit 7 cassette read data. Port C (output): bits 0-3
+// keyboard line, bit 4 cassette motor, bit 5 cassette write, bits 6-7 PSG
+// BC1/BDIR.
 package ppi
 
-import (
-	"cpcgo/internal/keyboard"
-	"cpcgo/internal/psg"
-)
+import "cpcgo/internal/psg"
 
-// PPI stores the CPC-visible 8255 ports and control state.
+// Port B inputs other than VSYNC: Amstrad distributor ID (7), 50 Hz, /EXP
+// high (no expansion), printer BUSY high (no printer), no cassette signal.
+const defaultPortB = 0x0e | 0x10 | 0x20 | 0x40
+
+// PPI holds the 8255 port latches and control word.
 type PPI struct {
 	portA   uint8
-	portB   uint8
 	portC   uint8
 	control uint8
 	psg     *psg.PSG
-	keys    *keyboard.Matrix
+
+	// VSync reports the CRTC VSYNC signal for port B bit 0.
+	VSync func() bool
+	// PortBInputs overrides bits 1-7 of port B when non-zero.
+	PortBInputs uint8
 }
 
-// New creates a PPI with CPC-like reset inputs.
-func New(psgDevice *psg.PSG, keys *keyboard.Matrix) *PPI {
-	return &PPI{
-		portB:   0xfe,
-		control: 0x9b,
-		psg:     psgDevice,
-		keys:    keys,
-	}
+// New creates a PPI connected to the PSG.
+func New(psgDevice *psg.PSG) *PPI {
+	return &PPI{control: 0x9b, psg: psgDevice}
 }
 
-// ReadPort implements bus.IODevice.
+// ReadPort implements bus.IODevice. The PPI is selected when A11 is low.
 func (p *PPI) ReadPort(port uint16) (uint8, bool) {
-	if !selectedByPort(port) {
+	if port&0x0800 != 0 {
 		return 0, false
 	}
-
-	switch registerSelect(port) {
+	switch (port >> 8) & 0x03 {
 	case 0:
-		p.syncPSG()
+		if p.control&0x10 != 0 { // port A input
+			return p.psgBus(), true
+		}
 		return p.portA, true
 	case 1:
-		return p.portB, true
+		return p.PortB(), true
 	case 2:
 		return p.portC, true
-	default:
-		return 0xff, true
 	}
+	return 0xff, true
 }
 
 // WritePort implements bus.IODevice.
 func (p *PPI) WritePort(port uint16, val uint8) bool {
-	if !selectedByPort(port) {
+	if port&0x0800 != 0 {
 		return false
 	}
-
-	switch registerSelect(port) {
+	switch (port >> 8) & 0x03 {
 	case 0:
 		p.portA = val
+		p.drivePSG()
 	case 1:
-		p.portB = val
+		// Port B is an input on the CPC.
 	case 2:
 		p.portC = val
-		p.syncPSG()
+		p.drivePSG()
 	case 3:
-		p.writeControl(val)
+		if val&0x80 != 0 {
+			// Mode set: all output latches are cleared.
+			p.control = val
+			p.portA, p.portC = 0, 0
+		} else {
+			bit := (val >> 1) & 0x07
+			if val&1 != 0 {
+				p.portC |= 1 << bit
+			} else {
+				p.portC &^= 1 << bit
+			}
+		}
+		p.drivePSG()
 	}
 	return true
 }
 
-// PortA returns the latched port A value.
-func (p *PPI) PortA() uint8 {
-	return p.portA
-}
-
-// PortB returns the latched port B value.
+// PortB returns the port B input value.
 func (p *PPI) PortB() uint8 {
-	return p.portB
+	v := uint8(defaultPortB)
+	if p.PortBInputs != 0 {
+		v = p.PortBInputs &^ 1
+	}
+	if p.VSync != nil && p.VSync() {
+		v |= 0x01
+	}
+	return v
 }
 
-// SetVSync updates the VSync input bit exposed through port B bit 0.
-func (p *PPI) SetVSync(active bool) {
-	if active {
-		p.portB |= 0x01
+// PortA returns the port A output latch.
+func (p *PPI) PortA() uint8 { return p.portA }
+
+// PortC returns the port C output latch.
+func (p *PPI) PortC() uint8 { return p.portC }
+
+// Control returns the last mode-set control word.
+func (p *PPI) Control() uint8 { return p.control }
+
+// KeyboardLine returns the keyboard line selected by port C.
+func (p *PPI) KeyboardLine() uint8 { return p.portC & 0x0f }
+
+// MotorOn reports the cassette motor bit.
+func (p *PPI) MotorOn() bool { return p.portC&0x10 != 0 }
+
+// drivePSG performs the PSG bus operation selected by port C bits 6-7
+// (00 inactive, 01 read, 10 write, 11 latch address). Writes only reach the
+// PSG when port A is an output.
+func (p *PPI) drivePSG() {
+	if p.psg == nil || p.control&0x10 != 0 {
 		return
 	}
-	p.portB &^= 0x01
-}
-
-// PortC returns the latched port C value.
-func (p *PPI) PortC() uint8 {
-	return p.portC
-}
-
-// KeyboardLine returns the selected keyboard matrix line.
-func (p *PPI) KeyboardLine() uint8 {
-	return p.portC & 0x0f
-}
-
-// Control returns the last mode-set control value.
-func (p *PPI) Control() uint8 {
-	return p.control
-}
-
-func (p *PPI) writeControl(val uint8) {
-	if val&0x80 != 0 {
-		p.control = val
-		return
-	}
-
-	bit := (val >> 1) & 0x07
-	if val&0x01 != 0 {
-		p.portC |= 1 << bit
-		p.syncPSG()
-		return
-	}
-	p.portC &^= 1 << bit
-	p.syncPSG()
-}
-
-func (p *PPI) syncPSG() {
-	if p.psg == nil {
-		return
-	}
-
 	switch p.portC & 0xc0 {
-	case 0x40:
-		p.updateKeyboardRegister()
-		p.portA = p.psg.Read()
 	case 0x80:
 		p.psg.Write(p.portA)
 	case 0xc0:
@@ -131,17 +124,13 @@ func (p *PPI) syncPSG() {
 	}
 }
 
-func (p *PPI) updateKeyboardRegister() {
-	if p.keys == nil || p.psg.Selected() != 14 {
-		return
+// psgBus returns what the PSG drives onto port A.
+func (p *PPI) psgBus() uint8 {
+	if p.psg == nil {
+		return 0xff
 	}
-	p.psg.SetRegister(14, p.keys.Row(p.KeyboardLine()))
-}
-
-func selectedByPort(port uint16) bool {
-	return port&0x0800 == 0
-}
-
-func registerSelect(port uint16) uint8 {
-	return uint8((port >> 8) & 0x03)
+	if p.portC&0xc0 == 0x40 {
+		return p.psg.Read()
+	}
+	return 0xff
 }

@@ -1,3 +1,6 @@
+// Command cpcgo runs the emulator headlessly: it boots the selected model,
+// optionally inserts a disk, runs for a number of frames and can save the
+// final frame as a PNG.
 package main
 
 import (
@@ -5,9 +8,9 @@ import (
 	"fmt"
 	"image/png"
 	"os"
-	"sort"
 
 	"cpcgo/internal/cpc"
+	"cpcgo/internal/dsk"
 	"cpcgo/internal/rom"
 )
 
@@ -20,146 +23,66 @@ func main() {
 
 func run() error {
 	var (
-		romPath    = flag.String("rom", "cpc6128.rom", "path to 32K CPC6128 OS+BASIC ROM")
-		amsdosPath = flag.String("amsdos", "", "path to optional 16K AMSDOS ROM")
-		diskPath   = flag.String("disk", "", "path to optional DSK image")
-		model      = flag.String("model", string(cpc.Model6128), "CPC model to emulate")
-		scale      = flag.Int("scale", 2, "display scale factor")
-		probe      = flag.Int("probe-instructions", 0, "run a bounded headless boot probe for N instructions")
-		dumpFrame  = flag.String("dump-frame", "", "write a crude framebuffer PNG to this path")
-		frameSteps = flag.Int("frame-instructions", 1_000_000, "instructions to run before --dump-frame")
+		romPath    = flag.String("rom", "cpc6128.rom", "path to the 32K OS+BASIC ROM for the model")
+		amsdosPath = flag.String("amsdos", "", "path to the 16K AMSDOS ROM (needed for disks)")
+		diskPath   = flag.String("disk", "", "DSK image to insert in drive A")
+		model      = flag.String("model", string(cpc.Model6128), "CPC model: 464, 664 or 6128")
+		crtcType   = flag.Int("crtc", 1, "CRTC type (0-4)")
+		frames     = flag.Int("frames", 200, "frames to run")
+		dumpFrame  = flag.String("dump-frame", "", "write the final frame to this PNG")
 	)
 	flag.Parse()
-
-	if *model != string(cpc.Model6128) {
-		return fmt.Errorf("unsupported model %q", *model)
-	}
-	if *scale < 1 {
-		return fmt.Errorf("scale must be at least 1")
-	}
 
 	image, err := rom.LoadOSBasic(*romPath)
 	if err != nil {
 		return err
 	}
 	if *amsdosPath != "" {
-		image, err = image.LoadAMSDOS(*amsdosPath)
-		if err != nil {
+		if image, err = image.LoadAMSDOS(*amsdosPath); err != nil {
 			return err
 		}
 	}
 
 	machine, err := cpc.New(cpc.Config{
-		Model: cpc.Model(*model),
-		ROMs:  image,
-		Disk:  *diskPath,
-		Scale: *scale,
+		Model:         cpc.Model(*model),
+		ROMs:          image,
+		CRTCType:      *crtcType,
+		DiskInterface: *diskPath != "",
 	})
 	if err != nil {
 		return err
 	}
-
-	config := machine.Config()
-	fmt.Printf("cpcgo model=%s scale=%d os=%d basic=%d amsdos=%d\n",
-		config.Model,
-		config.Scale,
-		len(config.ROMs.LowerOS),
-		len(config.ROMs.Basic),
-		len(config.ROMs.AMSDOS),
-	)
-
-	if config.Disk != "" {
-		fmt.Printf("disk=%s\n", config.Disk)
-	}
-	if *probe > 0 {
-		printProbe(machine.Probe(cpc.ProbeOptions{Instructions: *probe}))
-	}
-	if *dumpFrame != "" {
-		if *frameSteps > 0 {
-			machine.RunInstructions(*frameSteps)
+	if *diskPath != "" {
+		if machine.FDC() == nil {
+			return fmt.Errorf("--disk needs --amsdos")
 		}
-		if err := writeFramePNG(*dumpFrame, machine); err != nil {
+		disk, err := dsk.Load(*diskPath)
+		if err != nil {
+			return err
+		}
+		machine.FDC().Insert(0, disk)
+	}
+
+	fmt.Printf("cpcgo model=%s crtc=%d os=%d basic=%d amsdos=%d\n",
+		*model, *crtcType, len(image.LowerOS), len(image.Basic), len(image.AMSDOS))
+
+	for i := 0; i < *frames; i++ {
+		machine.RunFrame()
+	}
+	regs := machine.CPU().Registers()
+	fmt.Printf("frames=%d micros=%d pc=%04x sp=%04x mode=%d\n",
+		*frames, machine.Micros(), regs.PC, regs.SP, machine.GateArray().Mode())
+
+	if *dumpFrame != "" {
+		file, err := os.Create(*dumpFrame)
+		if err != nil {
+			return err
+		}
+		defer file.Close()
+		if err := png.Encode(file, machine.Framebuffer()); err != nil {
 			return err
 		}
 		fmt.Printf("frame=%s\n", *dumpFrame)
 	}
 	return nil
-}
-
-func writeFramePNG(path string, machine *cpc.Machine) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("create frame PNG %s: %w", path, err)
-	}
-	defer file.Close()
-
-	if err := png.Encode(file, machine.Framebuffer()); err != nil {
-		return fmt.Errorf("encode frame PNG %s: %w", path, err)
-	}
-	return nil
-}
-
-func printProbe(result cpc.ProbeResult) {
-	regs := result.Registers
-	fmt.Printf("probe instructions=%d cycles=%d halted=%v\n", result.Instructions, result.Cycles, result.Halted)
-	fmt.Printf("pc=%04x sp=%04x af=%04x bc=%04x de=%04x hl=%04x ix=%04x iy=%04x i=%02x r=%02x im=%d\n",
-		regs.PC,
-		regs.SP,
-		regs.AF,
-		regs.BC,
-		regs.DE,
-		regs.HL,
-		regs.IX,
-		regs.IY,
-		regs.I,
-		regs.R,
-		regs.IM,
-	)
-	fmt.Printf("io reads=%d writes=%d unhandled_reads=%d unhandled_writes=%d\n",
-		result.IO.Reads,
-		result.IO.Writes,
-		result.IO.UnhandledReads,
-		result.IO.UnhandledWrites,
-	)
-	fmt.Printf("timing cycles=%d frames=%d interrupts=%d frame_cycle=%d vsync=%v\n",
-		result.Timing.Cycles,
-		result.Timing.Frames,
-		result.Timing.Interrupts,
-		result.Timing.FrameCycle,
-		result.Timing.VSync,
-	)
-	printTopPorts("top_read_ports", result.IO.ReadPorts)
-	printTopPorts("top_write_ports", result.IO.WritePorts)
-	printTopPorts("top_unhandled_ports", result.IO.UnhandledPorts)
-}
-
-func printTopPorts(label string, ports map[uint16]int) {
-	const limit = 10
-	type count struct {
-		port uint16
-		n    int
-	}
-	counts := make([]count, 0, len(ports))
-	for port, n := range ports {
-		counts = append(counts, count{port: port, n: n})
-	}
-	sort.Slice(counts, func(i, j int) bool {
-		if counts[i].n == counts[j].n {
-			return counts[i].port < counts[j].port
-		}
-		return counts[i].n > counts[j].n
-	})
-
-	fmt.Printf("%s", label)
-	if len(counts) == 0 {
-		fmt.Println(" none")
-		return
-	}
-	for i, count := range counts {
-		if i >= limit {
-			break
-		}
-		fmt.Printf(" %04x:%d", count.port, count.n)
-	}
-	fmt.Println()
 }

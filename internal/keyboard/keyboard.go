@@ -52,7 +52,7 @@ var (
 	KeySemicolon    = Key{Line: 3, Bit: 4}
 	KeyColon        = Key{Line: 3, Bit: 5}
 	KeySlash        = Key{Line: 3, Bit: 6}
-	KeyComma        = Key{Line: 3, Bit: 7}
+	KeyPeriod       = Key{Line: 3, Bit: 7}
 	KeyMinus        = KeyHyphen
 	KeyEqual        = KeyHyphen
 	KeyPlus         = KeySemicolon
@@ -60,17 +60,17 @@ var (
 	KeyLeftBracket  = KeyLeftBrace
 	KeyRightBracket = KeyRightBrace
 	KeyPipe         = KeyAt
-	KeyGreater      = KeyComma
-	KeyLess         = KeyPeriod
+	KeyGreater      = KeyPeriod
+	KeyLess         = KeyComma
 
-	Key0      = Key{Line: 4, Bit: 0}
-	Key9      = Key{Line: 4, Bit: 1}
-	KeyO      = Key{Line: 4, Bit: 2}
-	KeyI      = Key{Line: 4, Bit: 3}
-	KeyL      = Key{Line: 4, Bit: 4}
-	KeyK      = Key{Line: 4, Bit: 5}
-	KeyM      = Key{Line: 4, Bit: 6}
-	KeyPeriod = Key{Line: 4, Bit: 7}
+	Key0     = Key{Line: 4, Bit: 0}
+	Key9     = Key{Line: 4, Bit: 1}
+	KeyO     = Key{Line: 4, Bit: 2}
+	KeyI     = Key{Line: 4, Bit: 3}
+	KeyL     = Key{Line: 4, Bit: 4}
+	KeyK     = Key{Line: 4, Bit: 5}
+	KeyM     = Key{Line: 4, Bit: 6}
+	KeyComma = Key{Line: 4, Bit: 7}
 
 	Key8     = Key{Line: 5, Bit: 0}
 	Key7     = Key{Line: 5, Bit: 1}

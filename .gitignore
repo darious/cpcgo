@@ -18,3 +18,4 @@ coverage.out
 
 # Alternate git metadata used in this sandbox because .git is mounted read-only.
 /.gitdir/
+/cpc-runner-cpcgo

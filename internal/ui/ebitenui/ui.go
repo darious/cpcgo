@@ -4,30 +4,31 @@
 package ebitenui
 
 import (
-	"image"
 	"image/png"
 	"os"
+	"sync"
+	"time"
 
 	"cpcgo/internal/cpc"
 	"cpcgo/internal/keyboard"
 	"cpcgo/internal/video"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
-	screenWidth  = 768
-	screenHeight = 544
-	activeX      = 64
-	activeY      = 72
-	pixelYScale  = 2
+	screenWidth  = video.Width
+	screenHeight = video.Height
+	sampleRate   = 44100
 )
 
 // Config configures the live UI.
 type Config struct {
 	Scale          int
 	ScreenshotPath string
+	Mute           bool
 }
 
 // Run starts the Ebiten live emulator UI.
@@ -37,28 +38,48 @@ func Run(machine *cpc.Machine, config Config) error {
 	}
 
 	ebiten.SetWindowTitle("cpcgo")
-	ebiten.SetWindowSize(screenWidth*config.Scale, screenHeight*config.Scale)
-	ebiten.SetTPS(cpc.FramesPerSecond)
+	ebiten.SetWindowSize(screenWidth*config.Scale/2*2, screenHeight*config.Scale/2*2)
+	ebiten.SetTPS(50)
 
-	return ebiten.RunGame(&game{
+	g := &game{
 		machine:        machine,
 		keys:           defaultKeyMap(),
 		screenshotPath: config.ScreenshotPath,
-	})
+		frame:          ebiten.NewImage(screenWidth, screenHeight),
+	}
+	if !config.Mute {
+		g.startAudio()
+	}
+	return ebiten.RunGame(g)
 }
 
 type game struct {
 	machine *cpc.Machine
 	keys    map[ebiten.Key]keyboard.Chord
 	frame   *ebiten.Image
+	audio   *sampleBuffer
+	player  *audio.Player
 
 	screenshotPath string
+}
+
+func (g *game) startAudio() {
+	g.audio = &sampleBuffer{}
+	g.machine.SetAudioSink(sampleRate, g.audio.push)
+	player, err := audio.NewContext(sampleRate).NewPlayer(g.audio)
+	if err != nil {
+		return
+	}
+	player.SetBufferSize(100 * time.Millisecond)
+	player.Play()
+	g.player = player
 }
 
 func (g *game) Update() error {
 	g.updateKeyboard()
 	g.machine.RunFrame()
-	g.frame = ebiten.NewImageFromImage(g.machine.Framebuffer())
+	img := g.machine.Monitor().Image()
+	g.frame.WritePixels(img.Pix)
 	if g.screenshotPath != "" && inpututil.IsKeyJustPressed(ebiten.KeyF12) {
 		return saveSnapshot(g.machine, g.screenshotPath)
 	}
@@ -66,15 +87,7 @@ func (g *game) Update() error {
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
-	screen.Fill(video.HardwareColor(g.machine.BorderInk()))
-	if g.frame == nil {
-		return
-	}
-
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(1, pixelYScale)
-	op.GeoM.Translate(activeX, activeY)
-	screen.DrawImage(g.frame, op)
+	screen.DrawImage(g.frame, nil)
 }
 
 func (g *game) Layout(int, int) (int, int) {
@@ -100,28 +113,34 @@ func saveSnapshot(machine *cpc.Machine, path string) error {
 		return err
 	}
 	defer file.Close()
-
-	return png.Encode(file, snapshot(machine))
+	return png.Encode(file, machine.Monitor().Image())
 }
 
-func snapshot(machine *cpc.Machine) image.Image {
-	img := image.NewRGBA(image.Rect(0, 0, screenWidth, screenHeight))
-	border := video.HardwareColor(machine.BorderInk())
-	for y := 0; y < screenHeight; y++ {
-		for x := 0; x < screenWidth; x++ {
-			img.SetRGBA(x, y, border)
-		}
-	}
+// sampleBuffer queues 16-bit stereo PCM between the emulator and the audio
+// player. Reads never block: missing samples play as silence.
+type sampleBuffer struct {
+	mu   sync.Mutex
+	data []byte
+}
 
-	frame := machine.Framebuffer()
-	for y := 0; y < video.Height; y++ {
-		for x := 0; x < video.Width; x++ {
-			c := frame.At(x, y)
-			img.Set(activeX+x, activeY+y*pixelYScale, c)
-			img.Set(activeX+x, activeY+y*pixelYScale+1, c)
-		}
+func (b *sampleBuffer) push(left, right float32) {
+	l, r := int16(left*12000), int16(right*12000)
+	b.mu.Lock()
+	if len(b.data) < sampleRate { // cap latency at about a quarter second
+		b.data = append(b.data, byte(l), byte(l>>8), byte(r), byte(r>>8))
 	}
-	return img
+	b.mu.Unlock()
+}
+
+func (b *sampleBuffer) Read(p []byte) (int, error) {
+	b.mu.Lock()
+	n := copy(p, b.data)
+	b.data = b.data[n:]
+	b.mu.Unlock()
+	for i := n; i < len(p); i++ {
+		p[i] = 0
+	}
+	return len(p), nil
 }
 
 func defaultKeyMap() map[ebiten.Key]keyboard.Chord {

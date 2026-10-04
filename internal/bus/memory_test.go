@@ -53,8 +53,8 @@ func TestMemoryUpperROMSelection(t *testing.T) {
 
 	m.SelectUpperROM(3)
 	m.Write(0xc000, 0x44)
-	if got := m.Read(0xc000); got != 0x44 {
-		t.Fatalf("missing upper ROM read = %#02x, want underlying RAM %#02x", got, 0x44)
+	if got := m.Read(0xc000); got != 0xb0 {
+		t.Fatalf("missing upper ROM read = %#02x, want BASIC %#02x", got, 0xb0)
 	}
 }
 

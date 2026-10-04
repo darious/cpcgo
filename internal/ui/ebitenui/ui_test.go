@@ -39,14 +39,11 @@ func TestDefaultKeyMapCoversBasicInput(t *testing.T) {
 	}
 }
 
-func TestLayoutUsesLineDoubledCPCAspect(t *testing.T) {
+func TestLayoutUsesCanonicalScreen(t *testing.T) {
 	game := &game{}
 	width, height := game.Layout(0, 0)
 	if width != screenWidth || height != screenHeight {
 		t.Fatalf("layout = %dx%d, want %dx%d", width, height, screenWidth, screenHeight)
-	}
-	if activeY+videoHeight()*pixelYScale > height {
-		t.Fatalf("active display exceeds layout height")
 	}
 }
 
@@ -60,8 +57,4 @@ func sameChord(a keyboard.Chord, b keyboard.Chord) bool {
 		}
 	}
 	return true
-}
-
-func videoHeight() int {
-	return 200
 }
