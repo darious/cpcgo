@@ -188,14 +188,18 @@ func (p *PSG) Tick() {
 		}
 	}
 
-	envPeriod := uint32(p.registers[11]) | uint32(p.registers[12])<<8
-	if envPeriod == 0 {
-		envPeriod = 1
-	}
-	p.envCount++
-	if p.envCount >= envPeriod {
-		p.envCount = 0
-		p.stepEnvelope()
+	// One envelope step takes 16*EP clocks (two ticks per period unit),
+	// so a full 16-step ramp lasts 256*EP clocks.
+	if p.subTick {
+		envPeriod := uint32(p.registers[11]) | uint32(p.registers[12])<<8
+		if envPeriod == 0 {
+			envPeriod = 1
+		}
+		p.envCount++
+		if p.envCount >= envPeriod {
+			p.envCount = 0
+			p.stepEnvelope()
+		}
 	}
 }
 

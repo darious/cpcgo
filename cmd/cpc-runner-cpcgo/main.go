@@ -14,6 +14,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,6 +38,7 @@ type options struct {
 	romOverride     string
 	input           string
 	romDir          string
+	audioFrames     int
 	framesSpecified bool
 }
 
@@ -82,6 +84,11 @@ func parseArgs(args []string) (options, error) {
 			o.input, err = value()
 		case "--rom-dir":
 			o.romDir, err = value()
+		case "--audio-frames":
+			var v string
+			if v, err = value(); err == nil {
+				o.audioFrames, err = strconv.Atoi(v)
+			}
 		default:
 			fmt.Fprintf(os.Stderr, "ignoring unknown flag %s\n", name)
 		}
@@ -163,11 +170,74 @@ func run(args []string) error {
 		}
 	}
 
+	var audio *audioRing
+	if o.audioFrames > 0 {
+		audio = newAudioRing(o.audioFrames * audioRate / 50)
+		machine.SetAudioSink(audioRate, audio.push)
+	}
+
 	inputFrames := runScript(machine, script)
 	for i := 0; i < o.frames; i++ {
 		machine.RunFrame()
 	}
-	return writeArtefacts(o, machine, inputFrames+o.frames)
+	if err := writeArtefacts(o, machine, inputFrames+o.frames); err != nil {
+		return err
+	}
+	if audio != nil {
+		return audio.writeWAV(filepath.Join(o.outputDir, "audio.wav"))
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Audio
+
+const audioRate = 44100
+
+// audioRing keeps the most recent stereo samples.
+type audioRing struct {
+	samples []int16 // interleaved left/right
+	pos     int
+	filled  bool
+}
+
+func newAudioRing(frames int) *audioRing {
+	return &audioRing{samples: make([]int16, frames*2)}
+}
+
+func (a *audioRing) push(left, right float32) {
+	a.samples[a.pos] = int16(left * 16000)
+	a.samples[a.pos+1] = int16(right * 16000)
+	a.pos += 2
+	if a.pos == len(a.samples) {
+		a.pos = 0
+		a.filled = true
+	}
+}
+
+func (a *audioRing) writeWAV(path string) error {
+	ordered := a.samples[:a.pos]
+	if a.filled {
+		ordered = append(append([]int16{}, a.samples[a.pos:]...), a.samples[:a.pos]...)
+	}
+	data := make([]byte, 44+len(ordered)*2)
+	le := binary.LittleEndian
+	copy(data, "RIFF")
+	le.PutUint32(data[4:], uint32(36+len(ordered)*2))
+	copy(data[8:], "WAVEfmt ")
+	le.PutUint32(data[16:], 16)
+	le.PutUint16(data[20:], 1)
+	le.PutUint16(data[22:], 2)
+	le.PutUint32(data[24:], audioRate)
+	le.PutUint32(data[28:], audioRate*4)
+	le.PutUint16(data[32:], 4)
+	le.PutUint16(data[34:], 16)
+	copy(data[36:], "data")
+	le.PutUint32(data[40:], uint32(len(ordered)*2))
+	for i, v := range ordered {
+		le.PutUint16(data[44+i*2:], uint16(v))
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 func modelFor(name string) (cpc.Model, string, error) {

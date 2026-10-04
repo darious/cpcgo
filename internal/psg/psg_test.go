@@ -41,3 +41,24 @@ func TestPSGIOPortsDefaultHigh(t *testing.T) {
 		t.Fatalf("register 15 = %#02x, want %#02x", got, 0xff)
 	}
 }
+
+// A full 16-step envelope ramp lasts 256*EP PSG clocks (32*EP ticks).
+func TestEnvelopePeriod(t *testing.T) {
+	p := New()
+	p.SetRegister(11, 10)
+	p.SetRegister(12, 0)
+	p.SetRegister(13, 12) // repeating sawtooth up
+	start := p.envelopeLevel()
+	ticks := 0
+	for {
+		p.Tick()
+		ticks++
+		if p.envelopeLevel() < start && ticks > 1 {
+			break
+		}
+		start = p.envelopeLevel()
+	}
+	if ticks != 320 {
+		t.Fatalf("envelope ramp took %d ticks, want 320", ticks)
+	}
+}
