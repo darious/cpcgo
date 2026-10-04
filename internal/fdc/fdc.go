@@ -65,6 +65,7 @@ type Drive struct {
 	sectorPos    int // index of the sector next under the head
 	seekPending  bool
 	seekStatus   uint8
+	ready        bool
 	doubleSided  bool
 }
 
@@ -77,6 +78,11 @@ type FDC struct {
 	command []byte
 	want    int
 	result  []byte
+
+	// params holds command bytes 2-5. The uPD765 keeps them in the
+	// registers it reports as C, H, R, N when a command fails without
+	// reading an ID.
+	params [4]uint8
 
 	// Execution phase state.
 	data      []byte
@@ -120,6 +126,21 @@ func New() *FDC {
 func (f *FDC) Insert(drive int, d *dsk.Disk) {
 	f.Drives[drive&1].Disk = d
 	f.Drives[drive&1].sectorPos = 0
+	f.updateReady()
+}
+
+// updateReady raises the interrupt the uPD765 generates when a drive's READY
+// line changes (ST0 = abnormal termination by ready change + drive).
+func (f *FDC) updateReady() {
+	for i := range f.Drives {
+		d := &f.Drives[i]
+		ready := f.ready(d)
+		if ready != d.ready {
+			d.ready = ready
+			d.seekPending = true
+			d.seekStatus = 0xc0 | uint8(i)
+		}
+	}
 }
 
 // Motor reports whether the drive motor is on.
@@ -147,6 +168,7 @@ func (f *FDC) WritePort(port uint16, val uint8) bool {
 	}
 	if port&0x0100 == 0 {
 		f.motor = val&1 != 0
+		f.updateReady()
 		return true
 	}
 	if port&1 == 1 {
@@ -254,6 +276,9 @@ func (f *FDC) ready(d *Drive) bool { return d.Disk != nil && f.motor }
 
 func (f *FDC) execute() {
 	cmd := f.command
+	if len(cmd) >= 6 {
+		copy(f.params[:], cmd[2:6])
+	}
 	switch cmd[0] & 0x1f {
 	case 0x03: // SPECIFY
 		f.phase = phaseIdle
@@ -289,7 +314,7 @@ func (f *FDC) execute() {
 		}
 		f.setResult(st0InvalidCommand)
 	case 0x0a: // READ ID
-		f.readID(cmd[1])
+		f.readID(cmd[0], cmd[1])
 	case 0x06, 0x0c: // READ DATA, READ DELETED DATA
 		f.startTransfer(false)
 	case 0x05, 0x09: // WRITE DATA, WRITE DELETED DATA
@@ -324,18 +349,20 @@ func (f *FDC) currentTrack(d *Drive, head int) *dsk.Track {
 	return d.Disk.Track(d.track, head)
 }
 
-func (f *FDC) readID(hdus uint8) {
+func (f *FDC) readID(cmd, hdus uint8) {
 	us := hdus & 0x07
 	head := int(hdus>>2) & 1
 	d := f.drive(us)
-	st0 := us & 0x07
+	st0 := hdus & 0x07
 	if !f.ready(d) {
 		f.setResult(st0|st0AbnormalTermination|st0NotReady, 0, 0, 0, 0, 0, 0)
 		return
 	}
 	t := f.currentTrack(d, head)
-	if t == nil || len(t.Sectors) == 0 {
-		f.setResult(st0|st0AbnormalTermination, st1MissingAddress, 0, 0, 0, 0, 0)
+	// Disk images hold MFM tracks: an FM (MF=0) search finds no ID.
+	if t == nil || len(t.Sectors) == 0 || cmd&0x40 == 0 {
+		p := f.params
+		f.setResult(st0|st0AbnormalTermination, st1MissingAddress, 0, p[0], p[1], p[2], p[3])
 		return
 	}
 	d.sectorPos %= len(t.Sectors)
@@ -381,6 +408,10 @@ func (f *FDC) startTransfer(write bool) {
 	d := f.drive(cmd[1])
 	if !f.ready(d) {
 		f.endTransfer(st0AbnormalTermination|st0NotReady, 0, 0)
+		return
+	}
+	if cmd[0]&0x40 == 0 {
+		f.endTransfer(st0AbnormalTermination, st1MissingAddress, 0)
 		return
 	}
 	if write && (d.WriteProtect) {
@@ -484,17 +515,10 @@ func (f *FDC) advanceSector() {
 	f.beginSector()
 }
 
-// endTransferNext ends a transfer after the sector just completed, reporting
-// the ID of the following sector as the uPD765 does.
+// endTransferNext ends a transfer after the sector just completed. Without
+// a terminal count the result reports the ID of that last sector.
 func (f *FDC) endTransferNext(st0, st1 uint8) {
-	tr := &f.transfer
-	if tr.r == tr.eot {
-		tr.c++
-		tr.r = 1
-	} else {
-		tr.r++
-	}
-	f.endTransfer(st0, st1, tr.st2)
+	f.endTransfer(st0, st1, f.transfer.st2)
 }
 
 func (f *FDC) endTransfer(st0, st1, st2 uint8) {
@@ -578,5 +602,8 @@ func (f *FDC) finishFormat() {
 		tr.c, tr.h, tr.r = id[0], id[1], id[2]
 	}
 	d.Disk.SetTrack(d.track, tr.head, t)
-	f.endTransfer(0, 0, 0)
+	// With no terminal count the format runs on to the index hole and
+	// ends with "end of cylinder"; C, H, R, N hold the command parameters.
+	p := f.params
+	f.setResult(tr.st0|uint8(tr.head<<2)|st0AbnormalTermination, st1EndOfCylinder, 0, p[0], p[1], p[2], p[3])
 }
