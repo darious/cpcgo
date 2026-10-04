@@ -38,7 +38,7 @@ const (
 
 	// The vertical oscillator only accepts a VSYNC this late in a field;
 	// earlier pulses (mid-frame VSYNCs) do not cause a retrace.
-	minFieldLines = 260
+	minFieldLines = 200
 )
 
 // Monitor accumulates the Gate Array's output into frames.
